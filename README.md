@@ -146,6 +146,41 @@ with RestClient("https://api.openf1.org/v1", timeout=10.0, max_attempts=3) as cl
 Errors derive from `shared.ExternalServiceError` → `ApiError` →
 `ApiConnectionError` / `ApiTimeoutError` / `ApiStatusError`.
 
+## OpenF1 ingestion client (`src/openf1`)
+
+A typed client over the public OpenF1 API, built on the REST client above (so it
+inherits timeouts, retry and logging). It is the **settlement source of truth**
+for the Paddock Club predictions game (ADR-0008). Methods return raw `list[dict]`
+(Pydantic validation is story 4.3; pagination / `429` handling is 4.2).
+
+```python
+from openf1 import OpenF1Client
+
+with OpenF1Client() as f1:
+    results = f1.get_session_result(session_key=9158)      # settlement backbone
+    grid    = f1.get_starting_grid(session_key=9158)
+    laps    = f1.get_laps(session_key=9158, driver_number=1)
+```
+
+Filters are pass-through query params. A **qualifying** `session_key` uses the
+same methods as a race, so qualifying markets settle on the same path.
+
+**Endpoint → settlement-type mapping** (Tier A, graded from OpenF1):
+
+| Method / endpoint | Grounds |
+|---|---|
+| `get_session_result` | types 1–7, 11 (wins, podium, points, position, head-to-head, classified, DNF, winning margin) |
+| `get_starting_grid` (+ result) | types 8–9 (beats grid, positions gained) |
+| `get_laps` | type 10 (fastest lap) |
+| `get_pit` | type 12 (pit stops) |
+| `get_position` | odds inputs |
+| `get_drivers` | driver name → number resolution |
+| `get_weather` | growth type 14 (rain) |
+| `get_stints` | Epic 7 tyre-strategy features |
+
+FastF1-sourced types (13 safety-car, 15 crash) are a separate Tier-B path — see
+`docs/architecture/f1-data-source-coverage.md`.
+
 ## Dataverse client (`src/dataverse`)
 
 The single governed persistence layer — an authenticated Dataverse Web API
