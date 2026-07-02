@@ -108,3 +108,19 @@ except SharedError:
     ...
 ```
 
+**Resilience** — a `retry` decorator (exponential backoff + full jitter, with a
+transient/permanent predicate) and a `run_with_timeout` wrapper. Hand-rolled
+(no `tenacity`) so behaviour is explicit and testable. The REST client
+(story #35) and OpenF1 ingestion (story 4.2) consume these rather than
+reimplementing retry/backoff. Retries and give-ups log via `shared.logging`.
+
+```python
+from shared import retry, run_with_timeout
+
+@retry(max_attempts=3, retry_on=ConnectionError)   # only retries transient errors
+def fetch() -> bytes:
+    ...
+
+result = run_with_timeout(fetch, timeout=5.0)       # caller-side deadline
+```
+
