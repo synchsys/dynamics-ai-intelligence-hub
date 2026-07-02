@@ -45,8 +45,17 @@ mypy_path = "src"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=src --cov-report=term-missing --cov-fail-under=80"
+# NOTE: coverage is deliberately NOT in addopts. pytest-cov's --cov-fail-under
+# makes editor test discovery (pytest --collect-only) exit non-zero, which
+# breaks VS Code's Test Explorer and the test debugger. Run coverage explicitly:
+#   pytest --cov=src --cov-report=term-missing --cov-fail-under=80
+# CI (story #9) runs that command; plain `pytest` stays editor-friendly.
+addopts = ""
 
 [tool.coverage.run]
 source = ["src"]
 branch = true
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
