@@ -26,11 +26,20 @@ class ApiTimeoutError(ApiError):
 class ApiStatusError(ApiError):
     """The server returned a non-2xx status.
 
-    Carries the HTTP ``status_code`` and response ``body`` so callers can
-    branch on them.
+    Carries the HTTP ``status_code``, response ``body`` and, when present, the
+    parsed ``retry_after`` (seconds) from the ``Retry-After`` header so the
+    retry layer can honour it.
     """
 
-    def __init__(self, status_code: int, body: str, message: str | None = None) -> None:
+    def __init__(
+        self,
+        status_code: int,
+        body: str,
+        *,
+        retry_after: float | None = None,
+        message: str | None = None,
+    ) -> None:
         self.status_code = status_code
         self.body = body
+        self.retry_after = retry_after
         super().__init__(message or f"HTTP {status_code}: {body[:200]}")

@@ -10,7 +10,7 @@ from api import (
     ApiTimeoutError,
     RestClient,
 )
-from api.client import _is_transient
+from api.client import _is_transient, _parse_retry_after, _retry_after_delay
 from shared.exceptions import ExternalServiceError
 
 
@@ -234,3 +234,51 @@ def test_request_logs(capsys: pytest.CaptureFixture[str]) -> None:
     client = make_client(lambda req: httpx.Response(200))
     client.get("/logged")
     assert "GET /logged" in capsys.readouterr().err
+
+
+# --- Retry-After (429 rate limiting) ---------------------------------------
+
+
+def test_parse_retry_after() -> None:
+    assert _parse_retry_after("5") == 5.0
+    assert _parse_retry_after("  12 ") == 12.0
+    assert _parse_retry_after(None) is None
+    assert _parse_retry_after("Wed, 21 Oct 2025 07:28:00 GMT") is None  # HTTP-date -> fallback
+
+
+def test_retry_after_delay_prefers_header() -> None:
+    assert _retry_after_delay(ApiStatusError(429, "", retry_after=7.0), 1.0) == 7.0
+    assert _retry_after_delay(ApiStatusError(500, ""), 1.0) == 1.0  # no header -> computed
+    assert _retry_after_delay(ValueError("x"), 2.0) == 2.0
+    # capped
+    assert _retry_after_delay(ApiStatusError(429, "", retry_after=9999.0), 1.0) == 120.0
+
+
+def test_status_error_carries_parsed_retry_after() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, headers={"Retry-After": "4"})
+
+    client = make_client(handler, max_attempts=1)
+    with pytest.raises(ApiStatusError) as info:
+        client.get("/limited")
+    assert info.value.retry_after == 4.0
+
+
+def test_429_retry_after_is_honoured_in_backoff() -> None:
+    sleeps: list[float] = []
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(429, headers={"Retry-After": "3"})
+        return httpx.Response(200, json={})
+
+    rest = RestClient(
+        "https://api.test",
+        transport=httpx.MockTransport(handler),
+        sleep=sleeps.append,
+        max_attempts=2,
+    )
+    rest.get("/x")
+    assert sleeps == [3.0]  # honoured the server header, not the default backoff

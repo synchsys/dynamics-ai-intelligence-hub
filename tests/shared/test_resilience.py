@@ -156,3 +156,23 @@ def test_with_timeout_decorator() -> None:
         return "fast"
 
     assert quick() == "fast"
+
+
+def test_delay_override_replaces_computed_backoff() -> None:
+    sleeps: list[float] = []
+    calls = {"n": 0}
+
+    @retry(
+        max_attempts=3,
+        retry_on=ValueError,
+        sleep=sleeps.append,
+        delay_override=lambda _exc, _computed: 99.0,
+    )
+    def flaky() -> str:
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise ValueError("transient")
+        return "ok"
+
+    assert flaky() == "ok"
+    assert sleeps == [99.0, 99.0]

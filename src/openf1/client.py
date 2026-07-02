@@ -14,7 +14,7 @@ in the README).
 """
 
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 from api.client import RestClient
@@ -84,6 +84,29 @@ class OpenF1Client:
 
     def get_weather(self, **filters: FilterValue) -> list[dict[str, Any]]:
         return self._get("weather", filters)
+
+    # -- large imports ------------------------------------------------------
+
+    def collect(
+        self, endpoint: str, *, over: str, values: Iterable[FilterValue], **filters: FilterValue
+    ) -> list[dict[str, Any]]:
+        """Fetch an endpoint once per ``over`` value and concatenate the results.
+
+        OpenF1 returns the full filtered array per request (no offset pagination),
+        so large imports are made reliable by **chunking the query** on a natural
+        key — e.g. ``collect("laps", over="driver_number", values=[1, 44, 16],
+        session_key=9158)``. Each request inherits the REST client's retry /
+        Retry-After handling. Duplicate ``values`` are de-duplicated (first-seen
+        order preserved).
+        """
+        results: list[dict[str, Any]] = []
+        seen: set[FilterValue] = set()
+        for value in values:
+            if value in seen:
+                continue
+            seen.add(value)
+            results.extend(self._get(endpoint, {**filters, over: value}))
+        return results
 
     # -- lifecycle ----------------------------------------------------------
 

@@ -24,6 +24,9 @@ from api.exceptions import (
 from shared.logging import get_logger
 from shared.resilience import retry
 
+# Cap on how long a server-provided Retry-After can make us wait.
+_MAX_RETRY_AFTER = 120.0
+
 
 def _is_transient(exc: BaseException) -> bool:
     """Classify which REST failures are worth retrying."""
@@ -32,6 +35,26 @@ def _is_transient(exc: BaseException) -> bool:
     if isinstance(exc, ApiStatusError):
         return exc.status_code == 429 or 500 <= exc.status_code < 600
     return False
+
+
+def _parse_retry_after(value: str | None) -> float | None:
+    """Parse a ``Retry-After`` header value (numeric seconds form only).
+
+    The HTTP-date form falls back to ``None`` so the caller uses normal backoff.
+    """
+    if value is None:
+        return None
+    value = value.strip()
+    if value.isdigit():
+        return float(value)
+    return None
+
+
+def _retry_after_delay(exc: BaseException, computed: float) -> float:
+    """Honour a server ``Retry-After`` (capped) over the computed backoff."""
+    if isinstance(exc, ApiStatusError) and exc.retry_after is not None:
+        return min(exc.retry_after, _MAX_RETRY_AFTER)
+    return computed
 
 
 class RestClient:
@@ -60,13 +83,15 @@ class RestClient:
             timeout=timeout,
             transport=transport,
         )
-        # Retry wraps the single-shot request using the SHARED decorator.
+        # Retry wraps the single-shot request using the SHARED decorator,
+        # honouring a server Retry-After header on 429 via delay_override.
         self._do_request = retry(
             max_attempts=max_attempts,
             base_delay=base_delay,
             retry_on=_is_transient,
             sleep=sleep,
             logger=self._log,
+            delay_override=_retry_after_delay,
         )(self._request_once)
 
     def _request_once(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
@@ -77,7 +102,11 @@ class RestClient:
         except httpx.TransportError as exc:
             raise ApiConnectionError(f"{method} {url} failed: {exc}") from exc
         if response.is_error:
-            raise ApiStatusError(response.status_code, response.text)
+            raise ApiStatusError(
+                response.status_code,
+                response.text,
+                retry_after=_parse_retry_after(response.headers.get("Retry-After")),
+            )
         return response
 
     def request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:

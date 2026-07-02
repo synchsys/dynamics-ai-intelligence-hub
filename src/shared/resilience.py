@@ -76,12 +76,16 @@ def retry(
     retry_on: RetryCondition = Exception,
     sleep: Callable[[float], None] = time.sleep,
     logger: Logger | None = None,
+    delay_override: Callable[[BaseException, float], float] | None = None,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Retry a callable with exponential backoff and jitter.
 
     Only exceptions classified transient by ``retry_on`` are retried; permanent
     exceptions propagate immediately. After ``max_attempts`` the last exception
     is re-raised. ``sleep`` is injectable so tests need not wait in real time.
+
+    ``delay_override(exc, computed_delay)`` optionally replaces the computed
+    backoff for a given exception — e.g. to honour a server ``Retry-After``.
     """
     if max_attempts < 1:
         raise ValueError("max_attempts must be >= 1")
@@ -117,6 +121,8 @@ def retry(
                         max_delay=max_delay,
                         jitter=jitter,
                     )
+                    if delay_override is not None:
+                        delay = delay_override(exc, delay)
                     log.warning(
                         "%s failed (attempt %d/%d), retrying in %.3fs: %s",
                         func.__name__,

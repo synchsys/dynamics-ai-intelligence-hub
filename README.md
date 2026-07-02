@@ -129,7 +129,8 @@ result = run_with_timeout(fetch, timeout=5.0)       # caller-side deadline
 A resilient, typed HTTP client (built on `httpx`) that consumes the `shared`
 resilience + logging utilities. It adds timeouts, retry-with-backoff for
 transient failures (connection errors, timeouts, `429`/`5xx`) and a typed error
-model. Foundation for OpenF1 ingestion (Epic 4) and any future REST work.
+model. On `429`, the server's `Retry-After` header is honoured over the default
+backoff. Foundation for OpenF1 ingestion (Epic 4) and any future REST work.
 
 ```python
 from api import RestClient, ApiStatusError
@@ -151,7 +152,8 @@ Errors derive from `shared.ExternalServiceError` → `ApiError` →
 A typed client over the public OpenF1 API, built on the REST client above (so it
 inherits timeouts, retry and logging). It is the **settlement source of truth**
 for the Paddock Club predictions game (ADR-0008). Methods return raw `list[dict]`
-(Pydantic validation is story 4.3; pagination / `429` handling is 4.2).
+(Pydantic validation is story 4.3). Rate limiting is handled by the REST client
+(honours `Retry-After`); large imports are chunked with `collect(...)`.
 
 ```python
 from openf1 import OpenF1Client
@@ -163,7 +165,13 @@ with OpenF1Client() as f1:
 ```
 
 Filters are pass-through query params. A **qualifying** `session_key` uses the
-same methods as a race, so qualifying markets settle on the same path.
+same methods as a race, so qualifying markets settle on the same path. For large
+imports, chunk the query on a natural key (OpenF1 returns the full array per
+request — no offset paging):
+
+```python
+laps = f1.collect("laps", over="driver_number", values=[1, 44, 16], session_key=9158)
+```
 
 **Endpoint → settlement-type mapping** (Tier A, graded from OpenF1):
 
