@@ -124,3 +124,25 @@ def fetch() -> bytes:
 result = run_with_timeout(fetch, timeout=5.0)       # caller-side deadline
 ```
 
+## REST client (`src/api`)
+
+A resilient, typed HTTP client (built on `httpx`) that consumes the `shared`
+resilience + logging utilities. It adds timeouts, retry-with-backoff for
+transient failures (connection errors, timeouts, `429`/`5xx`) and a typed error
+model. Foundation for OpenF1 ingestion (Epic 4) and any future REST work.
+
+```python
+from api import RestClient, ApiStatusError
+
+with RestClient("https://api.openf1.org/v1", timeout=10.0, max_attempts=3) as client:
+    try:
+        resp = client.get("/sessions", params={"year": 2024})
+        data = resp.json()
+    except ApiStatusError as err:
+        # 4xx raise immediately; 429/5xx are retried first, then surface here
+        print(err.status_code, err.body)
+```
+
+Errors derive from `shared.ExternalServiceError` → `ApiError` →
+`ApiConnectionError` / `ApiTimeoutError` / `ApiStatusError`.
+
