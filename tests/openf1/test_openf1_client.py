@@ -150,3 +150,32 @@ def test_transient_error_retried_via_rest_client() -> None:
 def test_context_manager_closes() -> None:
     with make_client(lambda r: httpx.Response(200, json=[])) as client:
         assert client.get_sessions() == []
+
+
+# --- collect (query-chunked large imports) ---------------------------------
+
+
+def test_collect_chunks_and_concatenates() -> None:
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        dn = request.url.params.get("driver_number", "")
+        seen.append(dn)
+        return httpx.Response(200, json=[{"dn": dn}])
+
+    result = make_client(handler).collect(
+        "laps", over="driver_number", values=[1, 44], session_key=9158
+    )
+    assert seen == ["1", "44"]
+    assert result == [{"dn": "1"}, {"dn": "44"}]
+
+
+def test_collect_dedupes_values() -> None:
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(200, json=[])
+
+    make_client(handler).collect("laps", over="driver_number", values=[1, 1, 2])
+    assert calls["n"] == 2
