@@ -19,6 +19,13 @@ from shared.logging import (
     get_correlation_id,
     get_logger,
 )
+from shared.resilience import (
+    TimeoutExceededError,
+    compute_backoff,
+    retry,
+    run_with_timeout,
+    with_timeout,
+)
 
 __version__ = "0.1.0"
 
@@ -34,5 +41,10 @@ __all__ = [
     "ConfigError",
     "ValidationError",
     "ExternalServiceError",
+    "TimeoutExceededError",
+    "retry",
+    "run_with_timeout",
+    "with_timeout",
+    "compute_backoff",
     "__version__",
 ]
