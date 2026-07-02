@@ -1,18 +1,38 @@
-"""Shared utilities package for the Dynamics AI Intelligence Hub.
+"""Shared utilities for the Dynamics AI Intelligence Hub.
 
-Skeleton placeholder created in story #31 (workstation & project skeleton).
-The real configuration loader, structured logging and exception hierarchy
-are delivered in story #22 (Build the shared utilities package).
+Configuration loading, structured logging and the common exception hierarchy —
+imported across every later epic. Resilience utilities (timeout + retry) live
+in ``shared.resilience`` (story #23).
 """
+
+from shared.config import Settings, get_settings
+from shared.exceptions import (
+    ConfigError,
+    ExternalServiceError,
+    SharedError,
+    ValidationError,
+)
+from shared.logging import (
+    JsonFormatter,
+    bind_correlation_id,
+    configure_logging,
+    get_correlation_id,
+    get_logger,
+)
 
 __version__ = "0.1.0"
 
-
-def hello() -> str:
-    """Return a greeting confirming the ``shared`` package imports cleanly.
-
-    Exists only to prove the toolchain (lint, format, type-check, tests)
-    runs end to end on a fresh environment; replaced by real utilities in
-    story #22.
-    """
-    return "Dynamics AI Intelligence Hub - shared package ready"
+__all__ = [
+    "Settings",
+    "get_settings",
+    "JsonFormatter",
+    "bind_correlation_id",
+    "configure_logging",
+    "get_correlation_id",
+    "get_logger",
+    "SharedError",
+    "ConfigError",
+    "ValidationError",
+    "ExternalServiceError",
+    "__version__",
+]

@@ -66,3 +66,45 @@ datasets/       # openf1, audit-history, sample-crm
 infrastructure/ # bicep, terraform, environments
 portfolio/      # portfolio artefacts
 ```
+
+## Shared utilities (`src/shared`)
+
+Cross-cutting primitives imported by every later module — a single place for
+configuration, logging and errors (resilience/retry arrives in story #23).
+
+**Configuration** — typed, environment-driven settings (`HUB_` prefix;
+precedence: environment > `.env` > typed defaults). Invalid values raise
+`ConfigError`.
+
+```python
+from shared import get_settings
+
+settings = get_settings()          # cached; HUB_ENVIRONMENT, HUB_LOG_LEVEL, ...
+if settings.environment == "prod":
+    ...
+```
+
+**Structured logging** — JSON-friendly records with a context-bound
+correlation id that flows across async/Functions calls.
+
+```python
+from shared import bind_correlation_id, configure_logging, get_logger
+
+configure_logging(level=get_settings().log_level, json_output=True)
+bind_correlation_id()              # or pass an id from an inbound request
+log = get_logger(__name__)
+log.info("processing request")     # -> {"level": "INFO", ..., "correlation_id": "..."}
+```
+
+**Exceptions** — catch the base `SharedError`; downstream clients subclass
+`ExternalServiceError`, `ValidationError`, `ConfigError`.
+
+```python
+from shared import SharedError
+
+try:
+    ...
+except SharedError:
+    ...
+```
+
