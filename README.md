@@ -146,3 +146,36 @@ with RestClient("https://api.openf1.org/v1", timeout=10.0, max_attempts=3) as cl
 Errors derive from `shared.ExternalServiceError` → `ApiError` →
 `ApiConnectionError` / `ApiTimeoutError` / `ApiStatusError`.
 
+## Dataverse client (`src/dataverse`)
+
+The single governed persistence layer — an authenticated Dataverse Web API
+client (CRUD, upsert-by-alternate-key, `$batch`) built on the `api` REST client
+(so it inherits retry/backoff/logging) with per-request bearer tokens from a
+service principal. It's entity-agnostic (you pass the entity set name), so it's
+imported by OpenF1 persistence, FastF1 summaries and AI logging.
+
+```python
+from dataverse import DataverseClient, DataverseConfig
+
+with DataverseClient(DataverseConfig.from_env()) as dv:
+    cid = dv.create("contacts", {"lastname": "Smith", "firstname": "Jo"})
+    dv.update("contacts", cid, {"jobtitle": "Engineer"})
+    people = dv.retrieve_multiple("contacts", filter="lastname eq 'Smith'")
+    dv.delete("contacts", cid)
+```
+
+### Setup (required for real use)
+
+Provision these in your tenant, then fill `.env` (copy from `.env.example`):
+
+1. **Entra ID app registration** → client ID, tenant ID, a client secret.
+2. **Dataverse environment** with a database → environment URL.
+3. **Application user** in that environment, mapped to the app registration, with
+   a least-privilege security role.
+4. `.env`: `DATAVERSE_URL`, `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`.
+
+Auth uses the client-credentials flow (`azure-identity`) with a clean path to
+Managed Identity later — see [ADR-0003](docs/decisions/ADR-0003-dataverse-auth.md).
+The integration test runs only with `RUN_DATAVERSE_INTEGRATION=1` and valid
+credentials; unit tests use a mocked transport and need no environment.
+
