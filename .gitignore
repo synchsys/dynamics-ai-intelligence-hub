@@ -427,3 +427,16 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# --- Project: Python environment & tooling caches (added in #31) ---
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local-only Claude Code settings (permissions allowlist)
+.claude/settings.local.json
