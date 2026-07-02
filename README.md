@@ -38,10 +38,13 @@ The same four gates the CI pipeline enforces (story #9):
 ruff check .              # lint (pycodestyle, pyflakes, isort, pyupgrade, bugbear, simplify)
 black --check .           # formatting
 mypy src tests            # static types (strict)
-pytest                    # tests with coverage (fails under 80%)
+pytest                    # tests (fast; editor-friendly, no coverage)
+pytest --cov=src --cov-report=term-missing --cov-fail-under=80   # tests + coverage gate
 ```
 
-Run all of them before pushing.
+Run all of them before pushing. Coverage is intentionally kept out of pytest's
+`addopts` so VS Code's Test Explorer and debugger work; the CI pipeline
+(story #9) runs the `--cov` command to enforce the 80% gate.
 
 ## Project layout
 
