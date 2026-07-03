@@ -140,6 +140,15 @@ def test_ingest_markdown_end_to_end() -> None:
     assert tags["crm.md"] == "internal"
 
 
+def test_chunk_ids_are_unique_across_sections_of_one_source() -> None:
+    # Two sections of the same file must not collide on id (search-doc key, #70).
+    docs = load_markdown("regs.md", "# Overtaking\n\nDRS rules\n\n# Safety Car\n\nhold position")
+    result = ingest(docs, size=200, overlap=40)
+    ids = [c.id for c in result.chunks]
+    assert len(ids) == len(set(ids)) == 2
+    assert ids == ["regs.md#0", "regs.md#1"]
+
+
 def test_retag_changes_access_tag() -> None:
     doc = Document(source="s", text="t")
     assert retag(doc, "confidential").access_tag == "confidential"
