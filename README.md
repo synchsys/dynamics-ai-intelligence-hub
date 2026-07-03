@@ -189,6 +189,21 @@ laps = f1.collect("laps", over="driver_number", values=[1, 44, 16], session_key=
 FastF1-sourced types (13 safety-car, 15 crash) are a separate Tier-B path — see
 `docs/architecture/f1-data-source-coverage.md`.
 
+**Validation** (`openf1.models`) — lenient Pydantic models (`extra="ignore"`) for
+each endpoint (`Session`, `Driver`, `Lap`, `SessionResult`, `StartingGrid`,
+`Pit`, `Position`, `Stint`, `Weather`, `Meeting`). `parse_many` validates a batch
+and **collects per-row failures without aborting the run** — a bad record is
+logged and skipped, not fatal.
+
+```python
+from openf1 import OpenF1Client, SessionResult, parse_many
+
+rows = OpenF1Client().get_session_result(session_key=9158)
+result = parse_many(SessionResult, rows)   # -> ParseResult(valid=[...], errors=[...])
+for row in result.valid:
+    ...  # typed, validated
+```
+
 ## Dataverse client (`src/dataverse`)
 
 The single governed persistence layer — an authenticated Dataverse Web API
