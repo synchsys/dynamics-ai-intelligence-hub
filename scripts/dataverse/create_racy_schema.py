@@ -60,52 +60,159 @@ class Table:
     columns: list[Column]
     alt_key: list[str]  # column schema names forming the alternate key
     primary_name: str = "racy_Name"
+    ownership: str = "OrganizationOwned"  # or "UserOwned" for player-scoped tables
 
 
 SCHEMA: list[Table] = [
-    Table("racy_Session", "Racy Session", "Racy Sessions", "racy_sessions",
+    Table(
+        "racy_Session",
+        "Racy Session",
+        "Racy Sessions",
+        "racy_sessions",
+        [
+            Column("racy_SessionKey", "int", "Session Key"),
+            Column("racy_MeetingKey", "int", "Meeting Key"),
+            Column("racy_SessionName", "string", "Session Name"),
+            Column("racy_SessionType", "string", "Session Type"),
+            Column("racy_DateStart", "datetime", "Date Start"),
+            Column("racy_DateEnd", "datetime", "Date End"),
+            Column("racy_Year", "int", "Year"),
+        ],
+        alt_key=["racy_SessionKey"],
+    ),
+    Table(
+        "racy_Driver",
+        "Racy Driver",
+        "Racy Drivers",
+        "racy_drivers",
+        [
+            Column("racy_SessionKey", "int", "Session Key"),
+            Column("racy_DriverNumber", "int", "Driver Number"),
+            Column("racy_FullName", "string", "Full Name"),
+            Column("racy_Acronym", "string", "Acronym"),
+            Column("racy_TeamName", "string", "Team Name"),
+        ],
+        alt_key=["racy_SessionKey", "racy_DriverNumber"],
+    ),
+    Table(
+        "racy_SessionResult",
+        "Racy Session Result",
+        "Racy Session Results",
+        "racy_sessionresults",
+        [
+            Column("racy_SessionKey", "int", "Session Key"),
+            Column("racy_DriverNumber", "int", "Driver Number"),
+            Column("racy_Position", "int", "Position"),
+            Column("racy_Dnf", "bool", "DNF"),
+            Column("racy_Dns", "bool", "DNS"),
+            Column("racy_Dsq", "bool", "DSQ"),
+            Column("racy_GapToLeader", "decimal", "Gap To Leader"),
+            Column("racy_NumberOfLaps", "int", "Number Of Laps"),
+        ],
+        alt_key=["racy_SessionKey", "racy_DriverNumber"],
+    ),
+    Table(
+        "racy_StartingGrid",
+        "Racy Starting Grid",
+        "Racy Starting Grids",
+        "racy_startinggrids",
+        [
+            Column("racy_SessionKey", "int", "Session Key"),
+            Column("racy_DriverNumber", "int", "Driver Number"),
+            Column("racy_GridPosition", "int", "Grid Position"),
+        ],
+        alt_key=["racy_SessionKey", "racy_DriverNumber"],
+    ),
+    Table(
+        "racy_Lap",
+        "Racy Lap",
+        "Racy Laps",
+        "racy_laps",
+        [
+            Column("racy_SessionKey", "int", "Session Key"),
+            Column("racy_DriverNumber", "int", "Driver Number"),
+            Column("racy_LapNumber", "int", "Lap Number"),
+            Column("racy_LapDuration", "decimal", "Lap Duration"),
+        ],
+        alt_key=["racy_SessionKey", "racy_DriverNumber", "racy_LapNumber"],
+    ),
+    Table(
+        "racy_PitStop",
+        "Racy Pit Stop",
+        "Racy Pit Stops",
+        "racy_pitstops",
+        [
+            Column("racy_SessionKey", "int", "Session Key"),
+            Column("racy_DriverNumber", "int", "Driver Number"),
+            Column("racy_LapNumber", "int", "Lap Number"),
+            Column("racy_PitDuration", "decimal", "Pit Duration"),
+        ],
+        alt_key=["racy_SessionKey", "racy_DriverNumber", "racy_LapNumber"],
+    ),
+]
+
+
+# --- Paddock Club wager tables (story #225) ---------------------------------
+# Flat tables (scalar columns + alternate keys) so the wager loop can persist.
+# Cross-table references are carried as code/key columns (racy_playercode,
+# racy_sessionkey, ...). Native lookups, the Wallet-balance rollup, choice
+# columns and the Wager-Slip BPF are model-driven-app enrichment added with the
+# app stories (#11/#12) — not required for the settlement engine to read/write.
+# Player / Wallet / Wager Slip are UserOwned per the security model (#13, tech
+# doc §5); reference/event tables are OrganizationOwned.
+
+PADDOCK: list[Table] = [
+    Table("racy_League", "Racy League", "Racy Leagues", "racy_leagues",
+          [Column("racy_LeagueCode", "string", "League Code"),
+           Column("racy_Commissioner", "string", "Commissioner")],
+          alt_key=["racy_LeagueCode"]),
+    Table("racy_Season", "Racy Season", "Racy Seasons", "racy_seasons",
+          [Column("racy_SeasonCode", "string", "Season Code"),
+           Column("racy_LeagueCode", "string", "League Code"),
+           Column("racy_Year", "int", "Year")],
+          alt_key=["racy_SeasonCode"]),
+    Table("racy_RaceEvent", "Racy Race Event", "Racy Race Events", "racy_raceevents",
           [Column("racy_SessionKey", "int", "Session Key"),
            Column("racy_MeetingKey", "int", "Meeting Key"),
-           Column("racy_SessionName", "string", "Session Name"),
-           Column("racy_SessionType", "string", "Session Type"),
-           Column("racy_DateStart", "datetime", "Date Start"),
-           Column("racy_DateEnd", "datetime", "Date End"),
-           Column("racy_Year", "int", "Year")],
+           Column("racy_SeasonCode", "string", "Season Code"),
+           Column("racy_Status", "string", "Status"),  # Open / Locked / Settled
+           Column("racy_LockDeadline", "datetime", "Lock Deadline")],
           alt_key=["racy_SessionKey"]),
-    Table("racy_Driver", "Racy Driver", "Racy Drivers", "racy_drivers",
-          [Column("racy_SessionKey", "int", "Session Key"),
-           Column("racy_DriverNumber", "int", "Driver Number"),
-           Column("racy_FullName", "string", "Full Name"),
-           Column("racy_Acronym", "string", "Acronym"),
-           Column("racy_TeamName", "string", "Team Name")],
-          alt_key=["racy_SessionKey", "racy_DriverNumber"]),
-    Table("racy_SessionResult", "Racy Session Result", "Racy Session Results", "racy_sessionresults",
-          [Column("racy_SessionKey", "int", "Session Key"),
-           Column("racy_DriverNumber", "int", "Driver Number"),
-           Column("racy_Position", "int", "Position"),
-           Column("racy_Dnf", "bool", "DNF"),
-           Column("racy_Dns", "bool", "DNS"),
-           Column("racy_Dsq", "bool", "DSQ"),
-           Column("racy_GapToLeader", "decimal", "Gap To Leader"),
-           Column("racy_NumberOfLaps", "int", "Number Of Laps")],
-          alt_key=["racy_SessionKey", "racy_DriverNumber"]),
-    Table("racy_StartingGrid", "Racy Starting Grid", "Racy Starting Grids", "racy_startinggrids",
-          [Column("racy_SessionKey", "int", "Session Key"),
-           Column("racy_DriverNumber", "int", "Driver Number"),
-           Column("racy_GridPosition", "int", "Grid Position")],
-          alt_key=["racy_SessionKey", "racy_DriverNumber"]),
-    Table("racy_Lap", "Racy Lap", "Racy Laps", "racy_laps",
-          [Column("racy_SessionKey", "int", "Session Key"),
-           Column("racy_DriverNumber", "int", "Driver Number"),
-           Column("racy_LapNumber", "int", "Lap Number"),
-           Column("racy_LapDuration", "decimal", "Lap Duration")],
-          alt_key=["racy_SessionKey", "racy_DriverNumber", "racy_LapNumber"]),
-    Table("racy_PitStop", "Racy Pit Stop", "Racy Pit Stops", "racy_pitstops",
-          [Column("racy_SessionKey", "int", "Session Key"),
-           Column("racy_DriverNumber", "int", "Driver Number"),
-           Column("racy_LapNumber", "int", "Lap Number"),
-           Column("racy_PitDuration", "decimal", "Pit Duration")],
-          alt_key=["racy_SessionKey", "racy_DriverNumber", "racy_LapNumber"]),
+    Table("racy_Player", "Racy Player", "Racy Players", "racy_players",
+          [Column("racy_PlayerCode", "string", "Player Code"),
+           Column("racy_DisplayName", "string", "Display Name"),
+           Column("racy_SystemUserId", "string", "System User Id")],
+          alt_key=["racy_PlayerCode"], ownership="UserOwned"),
+    Table("racy_Wallet", "Racy Wallet", "Racy Wallets", "racy_wallets",
+          [Column("racy_PlayerCode", "string", "Player Code"),
+           Column("racy_Balance", "decimal", "Balance"),
+           Column("racy_StartingStake", "decimal", "Starting Stake")],
+          alt_key=["racy_PlayerCode"], ownership="UserOwned"),
+    Table("racy_SettlementType", "Racy Settlement Type", "Racy Settlement Types",
+          "racy_settlementtypes",
+          [Column("racy_Code", "string", "Code"),
+           Column("racy_Label", "string", "Label"),
+           Column("racy_Parameters", "string", "Parameters"),
+           Column("racy_Tier", "string", "Tier")],
+          alt_key=["racy_Code"]),
+    Table("racy_WagerSlip", "Racy Wager Slip", "Racy Wager Slips", "racy_wagerslips",
+          [Column("racy_SlipCode", "string", "Slip Code"),
+           Column("racy_SessionKey", "int", "Session Key"),
+           Column("racy_PlayerCode", "string", "Player Code"),
+           Column("racy_SettlementTypeCode", "string", "Settlement Type Code"),
+           Column("racy_RestatedText", "string", "Restated Prediction"),
+           Column("racy_Parameters", "memo", "Parameters (JSON)"),
+           Column("racy_FrozenOdds", "decimal", "Frozen Odds"),
+           Column("racy_Stake", "decimal", "Stake"),
+           Column("racy_Status", "string", "Status")],  # Draft/Locked/Won/Lost/Void
+          alt_key=["racy_SlipCode"], ownership="UserOwned"),
+    Table("racy_Settlement", "Racy Settlement", "Racy Settlements", "racy_settlements",
+          [Column("racy_SlipCode", "string", "Slip Code"),
+           Column("racy_Result", "string", "Result"),  # Won/Lost/Void
+           Column("racy_Payout", "decimal", "Payout"),
+           Column("racy_GradedOn", "datetime", "Graded On"),
+           Column("racy_DataSnapshot", "string", "Data Snapshot Ref")],
+          alt_key=["racy_SlipCode"]),
 ]
 
 
@@ -116,13 +223,21 @@ def _label(text: str) -> dict:
     return {
         "@odata.type": "Microsoft.Dynamics.CRM.Label",
         "LocalizedLabels": [
-            {"@odata.type": "Microsoft.Dynamics.CRM.LocalizedLabel", "Label": text, "LanguageCode": LANG}
+            {
+                "@odata.type": "Microsoft.Dynamics.CRM.LocalizedLabel",
+                "Label": text,
+                "LanguageCode": LANG,
+            }
         ],
     }
 
 
 def _attr_payload(col: Column, *, is_primary: bool = False) -> dict:
-    common = {"SchemaName": col.schema, "RequiredLevel": {"Value": "None"}, "DisplayName": _label(col.display)}
+    common = {
+        "SchemaName": col.schema,
+        "RequiredLevel": {"Value": "None"},
+        "DisplayName": _label(col.display),
+    }
     if is_primary or col.kind == "string":
         return {
             "@odata.type": "Microsoft.Dynamics.CRM.StringAttributeMetadata",
@@ -134,12 +249,18 @@ def _attr_payload(col: Column, *, is_primary: bool = False) -> dict:
     if col.kind == "int":
         return {
             "@odata.type": "Microsoft.Dynamics.CRM.IntegerAttributeMetadata",
-            **common, "Format": "None", "MinValue": -2147483648, "MaxValue": 2147483647,
+            **common,
+            "Format": "None",
+            "MinValue": -2147483648,
+            "MaxValue": 2147483647,
         }
     if col.kind == "decimal":
         return {
             "@odata.type": "Microsoft.Dynamics.CRM.DecimalAttributeMetadata",
-            **common, "Precision": 3, "MinValue": -100000.0, "MaxValue": 1000000.0,
+            **common,
+            "Precision": 3,
+            "MinValue": -100000.0,
+            "MaxValue": 1000000.0,
         }
     if col.kind == "bool":
         return {
@@ -154,7 +275,15 @@ def _attr_payload(col: Column, *, is_primary: bool = False) -> dict:
     if col.kind == "datetime":
         return {
             "@odata.type": "Microsoft.Dynamics.CRM.DateTimeAttributeMetadata",
-            **common, "Format": "DateAndTime",
+            **common,
+            "Format": "DateAndTime",
+        }
+    if col.kind == "memo":  # multi-line text, e.g. JSON parameters
+        return {
+            "@odata.type": "Microsoft.Dynamics.CRM.MemoAttributeMetadata",
+            **common,
+            "MaxLength": 4000,
+            "Format": "Text",
         }
     raise ValueError(f"unknown column kind: {col.kind}")
 
@@ -197,15 +326,23 @@ class Client:
 
 
 def ensure_publisher(c: Client) -> None:
-    found = c._get_json(f"/publishers?$filter=customizationprefix eq '{PREFIX}'&$select=publisherid")
+    found = c._get_json(
+        f"/publishers?$filter=customizationprefix eq '{PREFIX}'&$select=publisherid"
+    )
     if found.get("value"):
         print(f"publisher '{PREFIX}' exists — skip")
         c.skipped.append(f"publisher:{PREFIX}")
         return
-    c.post("/publishers", {
-        "uniquename": PUBLISHER_UNIQUE, "friendlyname": "Racy",
-        "customizationprefix": PREFIX, "customizationoptionvalueprefix": PUBLISHER_OPTVALUE_PREFIX,
-    }, label=f"publisher '{PREFIX}'")
+    c.post(
+        "/publishers",
+        {
+            "uniquename": PUBLISHER_UNIQUE,
+            "friendlyname": "Racy",
+            "customizationprefix": PREFIX,
+            "customizationoptionvalueprefix": PUBLISHER_OPTVALUE_PREFIX,
+        },
+        label=f"publisher '{PREFIX}'",
+    )
 
 
 def ensure_table(c: Client, t: Table) -> None:
@@ -220,10 +357,12 @@ def ensure_table(c: Client, t: Table) -> None:
             "DisplayName": _label(t.display),
             "DisplayCollectionName": _label(t.display_plural),
             "EntitySetName": t.entity_set,
-            "OwnershipType": "OrganizationOwned",
+            "OwnershipType": t.ownership,
             "HasActivities": False,
             "HasNotes": False,
-            "Attributes": [_attr_payload(Column(t.primary_name, "string", "Name"), is_primary=True)],
+            "Attributes": [
+                _attr_payload(Column(t.primary_name, "string", "Name"), is_primary=True)
+            ],
         }
         c.post("/EntityDefinitions", body, label=f"table {logical}")
 
@@ -237,15 +376,18 @@ def ensure_table(c: Client, t: Table) -> None:
             continue
         c.post(
             f"/EntityDefinitions(LogicalName='{logical}')/Attributes",
-            _attr_payload(col), label=f"column {logical}.{col_logical}",
+            _attr_payload(col),
+            label=f"column {logical}.{col_logical}",
         )
 
     # alternate key
     key_schema = f"{t.schema}_AK"
     key_logical = _logical(key_schema)
-    keys = c._get_json(
-        f"/EntityDefinitions(LogicalName='{logical}')/Keys?$select=SchemaName"
-    ) if c.apply or c.exists(f"/EntityDefinitions(LogicalName='{logical}')?$select=LogicalName") else {"value": []}
+    keys = (
+        c._get_json(f"/EntityDefinitions(LogicalName='{logical}')/Keys?$select=SchemaName")
+        if c.apply or c.exists(f"/EntityDefinitions(LogicalName='{logical}')?$select=LogicalName")
+        else {"value": []}
+    )
     if any(k.get("SchemaName") == key_schema for k in keys.get("value", [])):
         c.skipped.append(f"altkey:{logical}")
     else:
@@ -267,7 +409,9 @@ def build_client(apply: bool) -> Client:
     client_id = os.environ.get("AZURE_CLIENT_ID", "")
     secret = os.environ.get("AZURE_CLIENT_SECRET", "")
     if not all([url, tenant, client_id, secret]):
-        sys.exit("Missing DATAVERSE_URL / AZURE_* env vars — `set -a && source .env && set +a` first.")
+        sys.exit(
+            "Missing DATAVERSE_URL / AZURE_* env vars — `set -a && source .env && set +a` first."
+        )
     token = ClientSecretCredential(tenant, client_id, secret).get_token(f"{url}/.default").token
     http = httpx.Client(
         base_url=f"{url}/api/data/v9.2",
@@ -285,18 +429,32 @@ def build_client(apply: bool) -> Client:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Create racy_ OpenF1 Dataverse schema.")
+    parser = argparse.ArgumentParser(description="Create racy_ Dataverse schema (OpenF1 + Paddock).")
     parser.add_argument("--apply", action="store_true", help="actually create (default: dry run)")
+    parser.add_argument(
+        "--only",
+        choices=["f1", "paddock", "all"],
+        default="all",
+        help="which table set to provision (default: all)",
+    )
     args = parser.parse_args()
+
+    tables: list[Table] = []
+    if args.only in ("f1", "all"):
+        tables += SCHEMA
+    if args.only in ("paddock", "all"):
+        tables += PADDOCK
 
     c = build_client(args.apply)
     mode = "APPLY" if args.apply else "DRY RUN"
-    print(f"=== racy_ schema provisioning ({mode}) ===")
+    print(f"=== racy_ schema provisioning ({mode}, set={args.only}) ===")
     ensure_publisher(c)
-    for table in SCHEMA:
+    for table in tables:
         print(f"table: {_logical(table.schema)}")
         ensure_table(c, table)
-    print(f"\n{mode} complete — created/planned: {len(c.created)}, skipped(existing): {len(c.skipped)}")
+    print(
+        f"\n{mode} complete — created/planned: {len(c.created)}, skipped(existing): {len(c.skipped)}"
+    )
     if not args.apply:
         print("Re-run with --apply to create these in Dataverse.")
 
