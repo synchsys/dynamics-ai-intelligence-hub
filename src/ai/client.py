@@ -93,6 +93,25 @@ class AIClient:
         except openai.OpenAIError as exc:
             raise AIError(str(exc)) from exc
 
+    def complete(self, messages: Sequence[Mapping[str, Any]], **opts: Any) -> Any:
+        """Low-level call returning the raw chat completion.
+
+        Exposes the full response (message content **and** ``tool_calls``) so the
+        function-calling router (#61) can inspect tool selections. ``chat()`` is
+        the convenience wrapper that returns just the text.
+        """
+        self._log.info("ai chat: %d message(s) -> %s", len(messages), self._config.chat_deployment)
+
+        def _call() -> Any:
+            return self._sdk.chat.completions.create(
+                model=self._config.chat_deployment,
+                messages=list(messages),
+                **opts,
+            )
+
+        with self._translate():
+            return self._retry(_call)()
+
     def chat(
         self,
         messages: Sequence[Mapping[str, Any]],
@@ -105,19 +124,9 @@ class AIClient:
         ``temperature`` is omitted unless set — GPT-5-era reasoning models only
         accept the service default and 400 on any explicit value.
         """
-        self._log.info("ai chat: %d message(s) -> %s", len(messages), self._config.chat_deployment)
         if temperature is not None:
             opts["temperature"] = temperature
-
-        def _call() -> Any:
-            return self._sdk.chat.completions.create(
-                model=self._config.chat_deployment,
-                messages=list(messages),
-                **opts,
-            )
-
-        with self._translate():
-            response = self._retry(_call)()
+        response = self.complete(messages, **opts)
         return str(response.choices[0].message.content or "")
 
     def embed(self, texts: Sequence[str]) -> list[list[float]]:
