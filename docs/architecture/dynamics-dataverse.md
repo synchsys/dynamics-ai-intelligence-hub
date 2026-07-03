@@ -74,7 +74,7 @@ placed in an LLM — the model proposes, code and Dataverse decide.
 
 | Aspect | Decision | Rationale |
 |---|---|---|
-| Publisher | One custom publisher with a short prefix (e.g. `daih`) | Consistent schema names; avoids the default publisher |
+| Publisher | One custom publisher with the prefix `racy` (logical-name prefix `racy_`) | Consistent schema names; avoids the default publisher |
 | Solution packaging | Author in an **unmanaged** solution in Dev; export **managed** for downstream | Standard Microsoft ALM; managed elsewhere prevents drift |
 | Environments | Dev → (Test) → Prod, tracked in `infrastructure/environments` | Promotion path; matches Epic 12 Deployment CI/CD |
 | Source control | Solution unpacked to source (Solution Packager / `pac`) and committed | Reviewable schema diffs; the portfolio shows real ALM |

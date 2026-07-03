@@ -7,6 +7,7 @@ predictions game (ADR-0008); feeds validation (4.3) and Dataverse persistence
 """
 
 from openf1.client import DEFAULT_BASE_URL, OpenF1Client
+from openf1.mapping import MAPPINGS, EntityMap
 from openf1.models import (
     Driver,
     Lap,
@@ -23,6 +24,7 @@ from openf1.models import (
     Weather,
     parse_many,
 )
+from openf1.persistence import IngestSummary, OpenF1Persister, is_settleable
 
 __all__ = [
     "OpenF1Client",
@@ -41,4 +43,9 @@ __all__ = [
     "ParseError",
     "ParseResult",
     "parse_many",
+    "EntityMap",
+    "MAPPINGS",
+    "OpenF1Persister",
+    "IngestSummary",
+    "is_settleable",
 ]
