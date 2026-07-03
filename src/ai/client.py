@@ -82,6 +82,11 @@ class AIClient:
             logger=self._log,
         )
 
+    @property
+    def model(self) -> str:
+        """The chat deployment name this client targets."""
+        return self._config.chat_deployment
+
     @contextmanager
     def _translate(self) -> Iterator[None]:
         try:

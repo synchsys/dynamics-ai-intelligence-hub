@@ -216,6 +216,30 @@ PADDOCK: list[Table] = [
 ]
 
 
+# --- AI governance tables (story #230, Epic 8 prompt/response logging) -------
+# Every LLM call in a feature epic logs its prompt + response here (governance is
+# implemented in the feature epic, not deferred to Epic 11). Request and response
+# are paired by racy_RequestCode; the response carries the parsed decision so the
+# intake pipeline's behaviour is auditable end to end.
+
+AI: list[Table] = [
+    Table("racy_AiRequest", "Racy AI Request", "Racy AI Requests", "racy_airequests",
+          [Column("racy_RequestCode", "string", "Request Code"),
+           Column("racy_Purpose", "string", "Purpose"),  # e.g. wager-intake
+           Column("racy_Model", "string", "Model"),
+           Column("racy_Prompt", "memo", "Prompt")],
+          alt_key=["racy_RequestCode"]),
+    Table("racy_AiResponse", "Racy AI Response", "Racy AI Responses", "racy_airesponses",
+          [Column("racy_RequestCode", "string", "Request Code"),
+           Column("racy_RawOutput", "memo", "Raw Output"),
+           Column("racy_Decision", "string", "Decision"),  # propose / decline / error
+           Column("racy_SettlementTypeCode", "string", "Settlement Type Code"),
+           Column("racy_Ok", "bool", "Ok"),
+           Column("racy_Error", "memo", "Error")],
+          alt_key=["racy_RequestCode"]),
+]
+
+
 # --- helpers ----------------------------------------------------------------
 
 
@@ -433,7 +457,7 @@ def main() -> None:
     parser.add_argument("--apply", action="store_true", help="actually create (default: dry run)")
     parser.add_argument(
         "--only",
-        choices=["f1", "paddock", "all"],
+        choices=["f1", "paddock", "ai", "all"],
         default="all",
         help="which table set to provision (default: all)",
     )
@@ -444,6 +468,8 @@ def main() -> None:
         tables += SCHEMA
     if args.only in ("paddock", "all"):
         tables += PADDOCK
+    if args.only in ("ai", "all"):
+        tables += AI
 
     c = build_client(args.apply)
     mode = "APPLY" if args.apply else "DRY RUN"
