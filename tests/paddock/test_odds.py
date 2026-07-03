@@ -2,7 +2,7 @@
 
 import pytest
 
-from paddock.odds import HeuristicPricer, Odds
+from paddock.odds import HeuristicPricer, Odds, decimal_to_fraction, fractional_line
 from paddock.settlement.grading import GRADERS
 
 # driver 1 = form favourite, driver 2 = mid, driver 3 = backmarker.
@@ -41,7 +41,34 @@ def test_every_tier_a_type_returns_valid_odds() -> None:
         assert isinstance(odds, Odds)
         assert odds.source == "heuristic"
         assert 0.0 < odds.probability < 1.0
-        assert odds.decimal_odds > 1.0, code
+        assert odds.decimal_odds >= 1.10, code  # floored by the shortest ladder rung (1/10)
+        assert "/" in odds.fractional, code  # a real fraction, e.g. "2/1"
+        assert odds.line, code
+
+
+def test_ladder_snapping_to_standard_fractions() -> None:
+    assert decimal_to_fraction(3.0) == (2, 1)  # 2/1 against
+    assert decimal_to_fraction(1.5) == (1, 2)  # 1/2 on
+    assert decimal_to_fraction(2.0) == (1, 1)  # evens
+    assert decimal_to_fraction(2.5) == (6, 4)  # bookmaker form of 3/2
+    assert decimal_to_fraction(1.001) == (1, 10)  # floored at the shortest rung
+
+
+def test_fractional_line_labels() -> None:
+    assert fractional_line(2, 1) == "2/1 against"
+    assert fractional_line(1, 2) == "1/2 on"
+    assert fractional_line(1, 1) == "evens"
+
+
+def test_odds_are_quoted_on_the_ladder() -> None:
+    # A ~1/3 shot should be quoted around 2/1 against (real bookmaker price).
+    p = HeuristicPricer({1: [1, 2, 1, 3, 2]}, house_margin=0.0)  # driver 1 wins ~ (2+.5)/6
+    odds = p.price("driver_wins", {"driver_number": 1})
+    assert "/" in odds.fractional
+    assert odds.line.endswith("against") or odds.line.endswith("on") or odds.line == "evens"
+    num, den = (int(x) for x in odds.fractional.split("/"))
+    # decimal is the quoted fraction + 1, within 2-dp display rounding
+    assert abs(odds.decimal_odds - (num / den + 1.0)) < 0.01
 
 
 def test_favourite_prices_shorter_than_backmarker() -> None:
