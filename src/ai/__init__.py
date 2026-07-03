@@ -8,6 +8,7 @@ outputs, the CRM assistant, RAG and agents.
 from ai.client import AIClient, build_sdk
 from ai.config import AzureOpenAIConfig
 from ai.exceptions import AIAuthError, AIError, AIRateLimitError
+from ai.structured import structured_output
 
 __all__ = [
     "AIClient",
@@ -16,4 +17,5 @@ __all__ = [
     "AIError",
     "AIAuthError",
     "AIRateLimitError",
+    "structured_output",
 ]
