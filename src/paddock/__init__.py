@@ -3,3 +3,7 @@
 Deterministic settlement over ingested OpenF1 data; the LLM proposes a
 settlement spec at intake, code grades it (ADR-0008).
 """
+
+from paddock.odds import FormTable, HeuristicPricer, Odds, OddsPricer
+
+__all__ = ["Odds", "OddsPricer", "HeuristicPricer", "FormTable"]
