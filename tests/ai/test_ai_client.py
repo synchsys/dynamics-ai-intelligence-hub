@@ -82,6 +82,10 @@ def test_chat_omits_temperature_by_default() -> None:
     assert "temperature" not in sdk.chat.completions.calls[0]
 
 
+def test_model_property_exposes_chat_deployment() -> None:
+    assert make_client(FakeSDK()).model == "gpt-4o"
+
+
 def test_embed_returns_vectors() -> None:
     sdk = FakeSDK(embed=lambda kw: _embed_response([[0.1, 0.2], [0.3, 0.4]]))
     assert make_client(sdk).embed(["a", "b"]) == [[0.1, 0.2], [0.3, 0.4]]
