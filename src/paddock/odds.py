@@ -26,13 +26,95 @@ _ALPHA = 0.5  # Laplace smoothing; keeps probabilities in the open interval (0, 
 _MIN_PROB = 0.01
 _MAX_PROB = 0.99
 
+# The traditional UK bookmaker fractional ladder (num, den), in the display forms
+# bookmakers actually use (6/4, 11/8, 9/4, ...), ascending by value. Odds are
+# quoted by snapping to the nearest rung, so a punter sees real prices like
+# "2/1 against" or "1/2 on" — never "2.73". The shortest/longest rungs also floor
+# and cap the price at realistic values.
+_LADDER: tuple[tuple[int, int], ...] = (
+    (1, 10),
+    (1, 8),
+    (1, 6),
+    (1, 5),
+    (1, 4),
+    (2, 7),
+    (3, 10),
+    (1, 3),
+    (2, 5),
+    (4, 9),
+    (1, 2),
+    (8, 15),
+    (4, 7),
+    (8, 11),
+    (4, 5),
+    (5, 6),
+    (10, 11),  # odds-on
+    (1, 1),  # evens
+    (11, 10),
+    (6, 5),
+    (5, 4),
+    (11, 8),
+    (6, 4),
+    (13, 8),
+    (7, 4),
+    (15, 8),
+    (2, 1),  # against
+    (9, 4),
+    (5, 2),
+    (11, 4),
+    (3, 1),
+    (7, 2),
+    (4, 1),
+    (9, 2),
+    (5, 1),
+    (6, 1),
+    (7, 1),
+    (8, 1),
+    (10, 1),
+    (12, 1),
+    (14, 1),
+    (16, 1),
+    (20, 1),
+    (25, 1),
+    (33, 1),
+    (40, 1),
+    (50, 1),
+    (66, 1),
+    (80, 1),
+    (100, 1),
+    (150, 1),
+    (200, 1),
+)
+
+
+def decimal_to_fraction(decimal_odds: float) -> tuple[int, int]:
+    """Snap a decimal price to the nearest standard fractional-odds rung."""
+    target_profit = decimal_odds - 1.0  # fractional value = decimal - 1
+    return min(_LADDER, key=lambda nd: abs(nd[0] / nd[1] - target_profit))
+
+
+def fractional_line(num: int, den: int) -> str:
+    """Human betting line for a fraction: '2/1 against', '1/2 on', or 'evens'."""
+    if num == den:
+        return "evens"
+    kind = "against" if num > den else "on"
+    return f"{num}/{den} {kind}"
+
 
 @dataclass(frozen=True)
 class Odds:
-    """A price: the fair probability, the offered decimal odds, and its source."""
+    """A price expressed the way a punter reads it.
+
+    ``decimal_odds`` is the total-return multiplier (``= fractional + 1``) used
+    for settlement payout; ``fractional`` (e.g. ``"2/1"``) and ``line``
+    (e.g. ``"2/1 against"``) are the real-world display, snapped to the
+    bookmaker ladder. ``probability`` is the fair estimate before margin.
+    """
 
     probability: float
     decimal_odds: float
+    fractional: str
+    line: str
     source: str
 
 
@@ -97,7 +179,15 @@ class HeuristicPricer:
     def _odds(self, probability: float) -> Odds:
         prob = _clamp(probability)
         offered = (1.0 / prob) / (1.0 + self._margin)  # house margin shortens the price
-        return Odds(probability=prob, decimal_odds=round(max(offered, 1.01), 2), source="heuristic")
+        num, den = decimal_to_fraction(offered)  # quote a real bookmaker fraction
+        decimal_odds = round(num / den + 1.0, 2)  # consistent with the quoted fraction
+        return Odds(
+            probability=prob,
+            decimal_odds=decimal_odds,
+            fractional=f"{num}/{den}",
+            line=fractional_line(num, den),
+            source="heuristic",
+        )
 
     def _probability(self, settlement_type: str, params: Mapping[str, Any]) -> float:
         dn = int(params.get("driver_number", 0))
