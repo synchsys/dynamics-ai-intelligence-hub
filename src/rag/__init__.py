@@ -4,6 +4,16 @@ Ingestion and chunking (#67) → embeddings (#68) → Azure AI Search index (#70
 hybrid + permission-aware retrieval (#71/#72) → cited answers (#73).
 """
 
+from rag.embeddings import (
+    DEFAULT_BATCH_SIZE,
+    EmbeddedChunk,
+    Embedder,
+    EmbeddingCache,
+    EmbeddingRun,
+    InMemoryEmbeddingCache,
+    content_hash,
+    embed_chunks,
+)
 from rag.ingestion import (
     DEFAULT_CHUNK_OVERLAP,
     DEFAULT_CHUNK_SIZE,
@@ -20,6 +30,7 @@ from rag.ingestion import (
 )
 
 __all__ = [
+    # ingestion (#67)
     "Document",
     "Chunk",
     "IngestionReport",
@@ -32,4 +43,13 @@ __all__ = [
     "retag",
     "DEFAULT_CHUNK_SIZE",
     "DEFAULT_CHUNK_OVERLAP",
+    # embeddings (#68)
+    "EmbeddedChunk",
+    "EmbeddingRun",
+    "Embedder",
+    "EmbeddingCache",
+    "InMemoryEmbeddingCache",
+    "embed_chunks",
+    "content_hash",
+    "DEFAULT_BATCH_SIZE",
 ]
