@@ -8,6 +8,7 @@ outputs, the CRM assistant, RAG and agents.
 from ai.client import AIClient, build_sdk
 from ai.config import AzureOpenAIConfig
 from ai.exceptions import AIAuthError, AIError, AIRateLimitError
+from ai.prompt_log import DataversePromptLogger, NullLogger, PromptLogger
 from ai.structured import structured_output
 
 __all__ = [
@@ -18,4 +19,7 @@ __all__ = [
     "AIAuthError",
     "AIRateLimitError",
     "structured_output",
+    "PromptLogger",
+    "NullLogger",
+    "DataversePromptLogger",
 ]

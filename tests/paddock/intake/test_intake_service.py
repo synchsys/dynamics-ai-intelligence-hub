@@ -67,9 +67,9 @@ class RecordingLogger:
         *,
         raw_output: str,
         decision: str,
-        settlement_type: str | None,
-        ok: bool,
-        error: str | None,
+        settlement_type: str | None = None,
+        ok: bool = True,
+        error: str | None = None,
     ) -> None:
         self.responses.append(
             {
