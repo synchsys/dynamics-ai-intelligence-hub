@@ -94,16 +94,25 @@ class AIClient:
             raise AIError(str(exc)) from exc
 
     def chat(
-        self, messages: Sequence[Mapping[str, Any]], *, temperature: float = 0.2, **opts: Any
+        self,
+        messages: Sequence[Mapping[str, Any]],
+        *,
+        temperature: float | None = None,
+        **opts: Any,
     ) -> str:
-        """Return the assistant's reply to a chat message list."""
+        """Return the assistant's reply to a chat message list.
+
+        ``temperature`` is omitted unless set — GPT-5-era reasoning models only
+        accept the service default and 400 on any explicit value.
+        """
         self._log.info("ai chat: %d message(s) -> %s", len(messages), self._config.chat_deployment)
+        if temperature is not None:
+            opts["temperature"] = temperature
 
         def _call() -> Any:
             return self._sdk.chat.completions.create(
                 model=self._config.chat_deployment,
                 messages=list(messages),
-                temperature=temperature,
                 **opts,
             )
 

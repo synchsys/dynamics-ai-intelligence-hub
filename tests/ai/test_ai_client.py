@@ -75,6 +75,13 @@ def test_chat_sends_model_and_messages() -> None:
     assert call["temperature"] == 0.7
 
 
+def test_chat_omits_temperature_by_default() -> None:
+    # GPT-5 reasoning models reject any explicit temperature, so we send none.
+    sdk = FakeSDK()
+    make_client(sdk).chat([{"role": "user", "content": "hi"}])
+    assert "temperature" not in sdk.chat.completions.calls[0]
+
+
 def test_embed_returns_vectors() -> None:
     sdk = FakeSDK(embed=lambda kw: _embed_response([[0.1, 0.2], [0.3, 0.4]]))
     assert make_client(sdk).embed(["a", "b"]) == [[0.1, 0.2], [0.3, 0.4]]
