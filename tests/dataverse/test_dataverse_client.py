@@ -249,6 +249,45 @@ def test_batch_create_failure_raises() -> None:
         make_client(handler).batch_create("contacts", [{"lastname": "A"}])
 
 
+def test_batch_upsert_atomic_changeset() -> None:
+    captured: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["ctype"] = request.headers["content-type"]
+        captured["body"] = request.content.decode()
+        return httpx.Response(200, text="HTTP/1.1 204 No Content")
+
+    make_client(handler).batch_upsert(
+        [
+            ("racy_wagerslips", "racy_slipcode='S1'", {"racy_status": "Locked"}),
+            ("racy_wallets", "racy_playercode='P1'", {"racy_balance": 20.0}),
+        ]
+    )
+    assert captured["ctype"].startswith("multipart/mixed; boundary=batch_")
+    assert "PATCH" in captured["body"]
+    assert "racy_wagerslips(racy_slipcode='S1')" in captured["body"]
+    assert "racy_wallets(racy_playercode='P1')" in captured["body"]
+
+
+def test_batch_upsert_empty_is_noop() -> None:
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(200)
+
+    make_client(handler).batch_upsert([])
+    assert calls["n"] == 0
+
+
+def test_batch_upsert_failure_raises() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="HTTP/1.1 412 Precondition Failed")
+
+    with pytest.raises(DataverseBatchError):
+        make_client(handler).batch_upsert([("racy_wallets", "racy_playercode='P1'", {"x": 1})])
+
+
 # --- lifecycle + hierarchy --------------------------------------------------
 
 

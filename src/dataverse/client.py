@@ -186,6 +186,38 @@ class DataverseClient:
         lines += [f"--{changeset_id}--", f"--{batch_id}--", ""]
         return "\r\n".join(lines)
 
+    def batch_upsert(self, operations: Sequence[tuple[str, str, Mapping[str, Any]]]) -> None:
+        """Upsert several records by alternate key in one **atomic** ``$batch`` changeset.
+
+        Each operation is ``(entity_set, alternate_key, data)``. A changeset is
+        all-or-nothing, so this is the mechanism for multi-record transactions
+        that must not partially apply — e.g. the confirm-and-lock debit (#228).
+        """
+        if not operations:
+            return
+        batch_id = f"batch_{uuid.uuid4().hex}"
+        changeset_id = f"changeset_{uuid.uuid4().hex}"
+        lines = [f"--{batch_id}", f"Content-Type: multipart/mixed; boundary={changeset_id}", ""]
+        for index, (entity_set, alt_key, data) in enumerate(operations, start=1):
+            lines += [
+                f"--{changeset_id}",
+                "Content-Type: application/http",
+                "Content-Transfer-Encoding: binary",
+                f"Content-ID: {index}",
+                "",
+                f"PATCH {self._config.api_base}/{entity_set}({alt_key}) HTTP/1.1",
+                "Content-Type: application/json",
+                "",
+                json.dumps(dict(data)),
+                "",
+            ]
+        lines += [f"--{changeset_id}--", f"--{batch_id}--", ""]
+        headers = self._headers({"Content-Type": f"multipart/mixed; boundary={batch_id}"})
+        with self._translate("$batch"):
+            resp = self._rest.post("/$batch", content="\r\n".join(lines), headers=headers)
+        if _BATCH_ERROR_RE.search(resp.text):
+            raise DataverseBatchError("$batch upsert reported failed operation(s)")
+
     # -- lifecycle + error translation -------------------------------------
 
     def close(self) -> None:
