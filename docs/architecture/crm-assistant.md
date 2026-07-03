@@ -44,9 +44,29 @@ Dataverse tables via `ai.prompt_log.DataversePromptLogger` — the same
 capability used by the Paddock free-text intake (#230). Logging is wired in from
 the start, not bolted on (Epic 11 consolidates policy over it).
 
+## Actions & approval (#64)
+
+Beyond answering, the assistant can *act* through the #61 tool layer
+(`src/ai/crm_tools.py`), built for safety:
+
+- **`lookup_records`** — a read tool; executes immediately against Dataverse.
+- **`create_followup_activity`** — a **guarded write**. Invoking it never writes
+  to Dataverse; it **stages** a `PendingWrite` in an `ApprovalBroker` and returns
+  a "pending approval" result. The record is created only when a human calls
+  `broker.approve(action_id)` (or discarded via `reject`). Every staged /
+  approved / rejected action is recorded in the broker's audit trail.
+
+`build_crm_tools(read_gw, write_gw)` assembles both tools + the broker into a
+`ToolRegistry` for `run_tools`. Because the write tool is side-effect-free until
+approved, the model can plan and "request" an action within the tool loop while
+the actual mutation stays behind the human gate — the concrete case of
+human-in-the-loop (#80). Verified live (`scripts/ai/verify_actions.py`): the
+follow-up is blocked before approval and created only after.
+
 ## Testing
 
-The model, retriever, and logger are all injected, so the assistant is
-unit-tested hermetically (grounded answer, history carried forward, reset,
-logging). A live smoke test (`scripts/ai/verify_assistant.py`) exercises the
-full path against Azure OpenAI + Dataverse and cleans up after itself.
+The model, retriever, logger, and gateways are all injected, so the assistant
+and tools are unit-tested hermetically (grounded answer, history, reset, logging;
+read executes, write blocked until approved, approve/reject audit trail). Live
+smoke tests (`scripts/ai/verify_assistant.py`, `verify_actions.py`) exercise the
+full paths against Azure OpenAI + Dataverse and clean up after themselves.
