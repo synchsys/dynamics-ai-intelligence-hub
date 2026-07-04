@@ -32,7 +32,7 @@ toolchain lives under the `dev` optional-dependency group.
 
 ## Running checks locally
 
-The same four gates the CI pipeline enforces (story #9):
+Run these gates before pushing (a CI workflow to enforce them is story #9):
 
 ```bash
 ruff check .              # lint (pycodestyle, pyflakes, isort, pyupgrade, bugbear, simplify)
@@ -42,29 +42,32 @@ pytest                    # tests (fast; editor-friendly, no coverage)
 pytest --cov=src --cov-report=term-missing --cov-fail-under=80   # tests + coverage gate
 ```
 
-Run all of them before pushing. Coverage is intentionally kept out of pytest's
-`addopts` so VS Code's Test Explorer and debugger work; the CI pipeline
-(story #9) runs the `--cov` command to enforce the 80% gate.
+Coverage is intentionally kept out of pytest's `addopts` so VS Code's Test
+Explorer and debugger work; run the `--cov` command explicitly. The gate is 80%,
+but the practice in this repo is **100% coverage on new `src/` code** — SDKs,
+gateways and loggers are injected so units test hermetically without network or
+credentials. Each capability also has a live smoke test under `scripts/**/verify_*.py`
+that runs against the real Azure services and cleans up after itself.
 
 ## Project layout
 
 ```
 src/            # source packages (src-layout, importable after editable install)
-  shared/       # config, logging, exceptions, resilience (built in Epic 2)
+  shared/       # config, logging, exceptions, resilience
   api/          # reusable REST client
   dataverse/    # Dataverse Web API client
   openf1/       # OpenF1 ingestion
-  fastf1_analytics/
-  ai/           # Azure OpenAI integration, assistant
-  rag/          # retrieval-augmented generation
-  agents/       # multi-agent orchestration
-  azure_functions/
+  ai/           # Azure OpenAI: client, prompts, structured outputs, tool layer, CRM assistant
+  rag/          # retrieval-augmented generation (ingest → retrieve → cited answers)
+  agents/       # multi-agent orchestration (planner → researcher → reviewer → reporter)
+  paddock/      # Paddock Club predictions game (odds, settlement, LLM intake)
+  fastf1_analytics/   # placeholder — not yet implemented
+  azure_functions/    # placeholder — not yet implemented
 tests/          # mirrors src/
-docs/           # architecture, decisions (ADRs), diagrams, learning, security, retrospectives
-notebooks/      # analysis notebooks
-datasets/       # openf1, audit-history, sample-crm
+scripts/        # live verify_*.py smoke tests + Dataverse schema tooling
+docs/           # architecture, decisions (ADRs), learning, security
 infrastructure/ # bicep, terraform, environments
-portfolio/      # portfolio artefacts
+notebooks/  datasets/  portfolio/
 ```
 
 ## Shared utilities (`src/shared`)
@@ -236,4 +239,98 @@ Auth uses the client-credentials flow (`azure-identity`) with a clean path to
 Managed Identity later — see [ADR-0003](docs/decisions/ADR-0003-dataverse-auth.md).
 The integration test runs only with `RUN_DATAVERSE_INTEGRATION=1` and valid
 credentials; unit tests use a mocked transport and need no environment.
+
+## Azure OpenAI, tools and the CRM assistant (`src/ai`)
+
+The governed LLM layer. One `AIClient` (chat + embeddings on Azure OpenAI, Entra
+auth reusing the Dataverse service principal, `shared` retry/logging) underpins:
+a **prompt library** (`ai.prompts`), **structured outputs** (schema-validated
+JSON with bounded repair), a **function-calling tool layer** (`ai.tools` — a
+tool registry + `run_tools` loop; the single tool layer agents reuse, per
+[ADR-0006](docs/decisions/ADR-0006-function-calling-boundary.md)), **guarded CRM
+action tools** (writes staged behind a human-approval gate), **prompt/response
+logging** to Dataverse (`ai.prompt_log`), and a conversational **CRM assistant**
+(`ai.assistant`).
+
+```python
+from ai import AIClient, AzureOpenAIConfig, structured_output
+from ai.assistant import CrmAssistant, DataverseCrmRetriever, EntityView
+
+client = AIClient(AzureOpenAIConfig.from_env())     # Entra by default; API-key optional
+answer = client.chat([{"role": "user", "content": "Say hello"}])
+
+# grounded, logged CRM Q&A over Dataverse (optionally RAG-backed — see below)
+assistant = CrmAssistant(client, DataverseCrmRetriever(dv, [EntityView("accounts", "Accounts", ("name", "address1_city"))]))
+reply = assistant.ask("Which accounts are based in Cork?")   # answers only from the data, or says it doesn't know
+```
+
+GPT-5-family models are the default (the gpt-4o generation is deprecated); they
+reject an explicit `temperature`, so `chat()` omits it unless set. See
+[docs/architecture/crm-assistant.md](docs/architecture/crm-assistant.md).
+
+## Retrieval-augmented generation (`src/rag`)
+
+A grounded, **permission-aware**, cited Q&A pipeline over Azure AI Search:
+ingestion + chunking → embeddings (idempotent) → a vector + keyword index →
+**hybrid retrieval** (RRF) → **role-based access trimming** → **cited generation**
+(hallucinated citations dropped). The `RagAssistant` composes it into one call;
+an evaluation harness measures hit rate / groundedness / relevance.
+
+```python
+from rag import RagAssistant, Retriever, KnowledgeIndex, SearchConfig
+
+assistant = RagAssistant(Retriever(KnowledgeIndex(SearchConfig.from_env()), client), client)
+result = assistant.ask("When can a driver use DRS?", roles=["employee"])
+print(result.answer, [c.source for c in result.citations])   # a guest sees only public sources
+```
+
+Access control is enforced *before* ranking — a restricted caller provably
+cannot retrieve (or cite) a document their role doesn't grant. See
+[docs/security/permission-aware-retrieval.md](docs/security/permission-aware-retrieval.md)
+and [docs/architecture/rag-assistant.md](docs/architecture/rag-assistant.md).
+
+## Multi-agent orchestration (`src/agents`)
+
+The four role agents — **planner → researcher → reviewer → reporter** — and a
+`MultiAgentWorkflow` that drives them to a report from a goal. Built as a custom,
+lightweight orchestration over the `ai` tool layer
+([ADR-0007](docs/decisions/ADR-0007-agent-framework.md)), *not* a heavyweight
+framework: the researcher reuses tools and the RAG assistant, writes stay behind
+the human-approval gate, and every step emits telemetry.
+
+```python
+from agents import MultiAgentWorkflow, Researcher, knowledge_search_tool
+from ai import build_crm_tools
+
+tools = build_crm_tools(dv, dv)                       # read + guarded-write tools
+tools.registry.register(knowledge_search_tool(rag, roles=["employee"]))   # researcher is RAG-backed
+workflow = MultiAgentWorkflow(client, researcher=Researcher(registry=tools.registry), broker=tools.broker)
+
+result = workflow.run("Explain the DRS rules and draft a follow-up task for the team")
+print(result.report)                # planner→researcher→reviewer→reporter, fully traced
+print(result.pending_writes)        # any write is staged, blocked pending approval
+```
+
+See [docs/architecture/agents.md](docs/architecture/agents.md) and
+[docs/architecture/agent-workflow.md](docs/architecture/agent-workflow.md).
+
+## Paddock Club predictions game (`src/paddock`)
+
+A virtual-credit F1 predictions game (Epic 13) grounded in the OpenF1 data above.
+Free-text intake maps a punter's prediction to one of 12 Tier-A settlement types
+via structured output, resolves driver names, validates parameters, and prices it
+with real-world fractional odds; the deterministic settlement engine grades locked
+slips against ingested results and settles wallets idempotently. The LLM proposes;
+**code grades deterministically** and voids rather than guesses
+([ADR-0008](docs/decisions/ADR-0008-odds-settlement.md)).
+
+```python
+from paddock.intake import WagerIntakeService
+
+intake = WagerIntakeService(client, pricer)
+result = intake.intake("Sainz to win in Singapore", session_key=9165, drivers=drivers)
+# -> a priced draft slip (driver_wins #55) or a guided rejection listing supported kinds
+```
+
+See [docs/architecture/settlement-registry.md](docs/architecture/settlement-registry.md).
 
