@@ -162,57 +162,115 @@ SCHEMA: list[Table] = [
 # doc §5); reference/event tables are OrganizationOwned.
 
 PADDOCK: list[Table] = [
-    Table("racy_League", "Racy League", "Racy Leagues", "racy_leagues",
-          [Column("racy_LeagueCode", "string", "League Code"),
-           Column("racy_Commissioner", "string", "Commissioner")],
-          alt_key=["racy_LeagueCode"]),
-    Table("racy_Season", "Racy Season", "Racy Seasons", "racy_seasons",
-          [Column("racy_SeasonCode", "string", "Season Code"),
-           Column("racy_LeagueCode", "string", "League Code"),
-           Column("racy_Year", "int", "Year")],
-          alt_key=["racy_SeasonCode"]),
-    Table("racy_RaceEvent", "Racy Race Event", "Racy Race Events", "racy_raceevents",
-          [Column("racy_SessionKey", "int", "Session Key"),
-           Column("racy_MeetingKey", "int", "Meeting Key"),
-           Column("racy_SeasonCode", "string", "Season Code"),
-           Column("racy_Status", "string", "Status"),  # Open / Locked / Settled
-           Column("racy_LockDeadline", "datetime", "Lock Deadline")],
-          alt_key=["racy_SessionKey"]),
-    Table("racy_Player", "Racy Player", "Racy Players", "racy_players",
-          [Column("racy_PlayerCode", "string", "Player Code"),
-           Column("racy_DisplayName", "string", "Display Name"),
-           Column("racy_SystemUserId", "string", "System User Id")],
-          alt_key=["racy_PlayerCode"], ownership="UserOwned"),
-    Table("racy_Wallet", "Racy Wallet", "Racy Wallets", "racy_wallets",
-          [Column("racy_PlayerCode", "string", "Player Code"),
-           Column("racy_Balance", "decimal", "Balance"),
-           Column("racy_StartingStake", "decimal", "Starting Stake")],
-          alt_key=["racy_PlayerCode"], ownership="UserOwned"),
-    Table("racy_SettlementType", "Racy Settlement Type", "Racy Settlement Types",
-          "racy_settlementtypes",
-          [Column("racy_Code", "string", "Code"),
-           Column("racy_Label", "string", "Label"),
-           Column("racy_Parameters", "string", "Parameters"),
-           Column("racy_Tier", "string", "Tier")],
-          alt_key=["racy_Code"]),
-    Table("racy_WagerSlip", "Racy Wager Slip", "Racy Wager Slips", "racy_wagerslips",
-          [Column("racy_SlipCode", "string", "Slip Code"),
-           Column("racy_SessionKey", "int", "Session Key"),
-           Column("racy_PlayerCode", "string", "Player Code"),
-           Column("racy_SettlementTypeCode", "string", "Settlement Type Code"),
-           Column("racy_RestatedText", "string", "Restated Prediction"),
-           Column("racy_Parameters", "memo", "Parameters (JSON)"),
-           Column("racy_FrozenOdds", "decimal", "Frozen Odds"),
-           Column("racy_Stake", "decimal", "Stake"),
-           Column("racy_Status", "string", "Status")],  # Draft/Locked/Won/Lost/Void
-          alt_key=["racy_SlipCode"], ownership="UserOwned"),
-    Table("racy_Settlement", "Racy Settlement", "Racy Settlements", "racy_settlements",
-          [Column("racy_SlipCode", "string", "Slip Code"),
-           Column("racy_Result", "string", "Result"),  # Won/Lost/Void
-           Column("racy_Payout", "decimal", "Payout"),
-           Column("racy_GradedOn", "datetime", "Graded On"),
-           Column("racy_DataSnapshot", "string", "Data Snapshot Ref")],
-          alt_key=["racy_SlipCode"]),
+    Table(
+        "racy_League",
+        "Racy League",
+        "Racy Leagues",
+        "racy_leagues",
+        [
+            Column("racy_LeagueCode", "string", "League Code"),
+            Column("racy_Commissioner", "string", "Commissioner"),
+        ],
+        alt_key=["racy_LeagueCode"],
+    ),
+    Table(
+        "racy_Season",
+        "Racy Season",
+        "Racy Seasons",
+        "racy_seasons",
+        [
+            Column("racy_SeasonCode", "string", "Season Code"),
+            Column("racy_LeagueCode", "string", "League Code"),
+            Column("racy_Year", "int", "Year"),
+        ],
+        alt_key=["racy_SeasonCode"],
+    ),
+    Table(
+        "racy_RaceEvent",
+        "Racy Race Event",
+        "Racy Race Events",
+        "racy_raceevents",
+        [
+            Column("racy_SessionKey", "int", "Session Key"),
+            Column("racy_MeetingKey", "int", "Meeting Key"),
+            Column("racy_SeasonCode", "string", "Season Code"),
+            Column("racy_Status", "string", "Status"),  # Open / Locked / Settled
+            Column("racy_LockDeadline", "datetime", "Lock Deadline"),
+        ],
+        alt_key=["racy_SessionKey"],
+    ),
+    Table(
+        "racy_Player",
+        "Racy Player",
+        "Racy Players",
+        "racy_players",
+        [
+            Column("racy_PlayerCode", "string", "Player Code"),
+            Column("racy_DisplayName", "string", "Display Name"),
+            Column("racy_SystemUserId", "string", "System User Id"),
+        ],
+        alt_key=["racy_PlayerCode"],
+        ownership="UserOwned",
+    ),
+    Table(
+        "racy_Wallet",
+        "Racy Wallet",
+        "Racy Wallets",
+        "racy_wallets",
+        [
+            Column("racy_PlayerCode", "string", "Player Code"),
+            Column("racy_Balance", "decimal", "Balance"),
+            Column("racy_StartingStake", "decimal", "Starting Stake"),
+        ],
+        alt_key=["racy_PlayerCode"],
+        ownership="UserOwned",
+    ),
+    Table(
+        "racy_SettlementType",
+        "Racy Settlement Type",
+        "Racy Settlement Types",
+        "racy_settlementtypes",
+        [
+            Column("racy_Code", "string", "Code"),
+            Column("racy_Label", "string", "Label"),
+            Column("racy_Parameters", "string", "Parameters"),
+            Column("racy_Tier", "string", "Tier"),
+        ],
+        alt_key=["racy_Code"],
+    ),
+    Table(
+        "racy_WagerSlip",
+        "Racy Wager Slip",
+        "Racy Wager Slips",
+        "racy_wagerslips",
+        [
+            Column("racy_SlipCode", "string", "Slip Code"),
+            Column("racy_SessionKey", "int", "Session Key"),
+            Column("racy_PlayerCode", "string", "Player Code"),
+            Column("racy_SettlementTypeCode", "string", "Settlement Type Code"),
+            Column("racy_RestatedText", "string", "Restated Prediction"),
+            Column("racy_Parameters", "memo", "Parameters (JSON)"),
+            Column("racy_FrozenOdds", "decimal", "Frozen Odds"),
+            Column("racy_Stake", "decimal", "Stake"),
+            Column("racy_Status", "string", "Status"),
+        ],  # Draft/Locked/Won/Lost/Void
+        alt_key=["racy_SlipCode"],
+        ownership="UserOwned",
+    ),
+    Table(
+        "racy_Settlement",
+        "Racy Settlement",
+        "Racy Settlements",
+        "racy_settlements",
+        [
+            Column("racy_SlipCode", "string", "Slip Code"),
+            Column("racy_Result", "string", "Result"),  # Won/Lost/Void
+            Column("racy_Payout", "decimal", "Payout"),
+            Column("racy_GradedOn", "datetime", "Graded On"),
+            Column("racy_DataSnapshot", "string", "Data Snapshot Ref"),
+        ],
+        alt_key=["racy_SlipCode"],
+    ),
 ]
 
 
@@ -223,20 +281,34 @@ PADDOCK: list[Table] = [
 # intake pipeline's behaviour is auditable end to end.
 
 AI: list[Table] = [
-    Table("racy_AiRequest", "Racy AI Request", "Racy AI Requests", "racy_airequests",
-          [Column("racy_RequestCode", "string", "Request Code"),
-           Column("racy_Purpose", "string", "Purpose"),  # e.g. wager-intake
-           Column("racy_Model", "string", "Model"),
-           Column("racy_Prompt", "memo", "Prompt")],
-          alt_key=["racy_RequestCode"]),
-    Table("racy_AiResponse", "Racy AI Response", "Racy AI Responses", "racy_airesponses",
-          [Column("racy_RequestCode", "string", "Request Code"),
-           Column("racy_RawOutput", "memo", "Raw Output"),
-           Column("racy_Decision", "string", "Decision"),  # propose / decline / error
-           Column("racy_SettlementTypeCode", "string", "Settlement Type Code"),
-           Column("racy_Ok", "bool", "Ok"),
-           Column("racy_Error", "memo", "Error")],
-          alt_key=["racy_RequestCode"]),
+    Table(
+        "racy_AiRequest",
+        "Racy AI Request",
+        "Racy AI Requests",
+        "racy_airequests",
+        [
+            Column("racy_RequestCode", "string", "Request Code"),
+            Column("racy_Purpose", "string", "Purpose"),  # e.g. wager-intake
+            Column("racy_Model", "string", "Model"),
+            Column("racy_Prompt", "memo", "Prompt"),
+        ],
+        alt_key=["racy_RequestCode"],
+    ),
+    Table(
+        "racy_AiResponse",
+        "Racy AI Response",
+        "Racy AI Responses",
+        "racy_airesponses",
+        [
+            Column("racy_RequestCode", "string", "Request Code"),
+            Column("racy_RawOutput", "memo", "Raw Output"),
+            Column("racy_Decision", "string", "Decision"),  # propose / decline / error
+            Column("racy_SettlementTypeCode", "string", "Settlement Type Code"),
+            Column("racy_Ok", "bool", "Ok"),
+            Column("racy_Error", "memo", "Error"),
+        ],
+        alt_key=["racy_RequestCode"],
+    ),
 ]
 
 
@@ -453,7 +525,9 @@ def build_client(apply: bool) -> Client:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Create racy_ Dataverse schema (OpenF1 + Paddock).")
+    parser = argparse.ArgumentParser(
+        description="Create racy_ Dataverse schema (OpenF1 + Paddock)."
+    )
     parser.add_argument("--apply", action="store_true", help="actually create (default: dry run)")
     parser.add_argument(
         "--only",

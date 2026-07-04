@@ -47,9 +47,24 @@ def main() -> int:
     ki = KnowledgeIndex(config)
 
     docs = [
-        Document("policy.md", "The staff canteen opens at 8am on weekdays.", access_tag="public", section="Canteen"),
-        Document("policy.md", "Internal: the Q4 reorganisation merges the sales and support teams.", access_tag="internal", section="Reorg"),
-        Document("policy.md", "Confidential: the acquisition target is Globex, at an offer of 40 million.", access_tag="confidential", section="M&A"),
+        Document(
+            "policy.md",
+            "The staff canteen opens at 8am on weekdays.",
+            access_tag="public",
+            section="Canteen",
+        ),
+        Document(
+            "policy.md",
+            "Internal: the Q4 reorganisation merges the sales and support teams.",
+            access_tag="internal",
+            section="Reorg",
+        ),
+        Document(
+            "policy.md",
+            "Confidential: the acquisition target is Globex, at an offer of 40 million.",
+            access_tag="confidential",
+            section="M&A",
+        ),
     ]
     run = embed_chunks(client, ingest(docs).chunks)
     print(f"chunks={run.embedded} dims={run.dimensions}")
@@ -87,7 +102,10 @@ def main() -> int:
         print(f"two-user guarantee holds: {ok}")
     finally:
         ki.delete()
-        for es, pk in (("racy_airequests", "racy_airequestid"), ("racy_airesponses", "racy_airesponseid")):
+        for es, pk in (
+            ("racy_airequests", "racy_airequestid"),
+            ("racy_airesponses", "racy_airesponseid"),
+        ):
             rows = dv.retrieve_multiple(es)
             for r in rows:
                 dv.delete(es, r[pk])

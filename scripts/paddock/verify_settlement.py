@@ -163,8 +163,10 @@ def part_b(dv: object, repo: object) -> bool:
 
     engine = SettlementEngine(repo)  # type: ignore[arg-type]
     run1 = engine.settle_session(SESSION_KEY, datetime.now(timezone.utc))
-    print(f"  run 1: settled={run1.settled} voided={run1.voided} "
-          f"reconciled={run1.reconciled} unchanged={run1.unchanged}")
+    print(
+        f"  run 1: settled={run1.settled} voided={run1.voided} "
+        f"reconciled={run1.reconciled} unchanged={run1.unchanged}"
+    )
 
     ok = True
     ok &= _check("run1 settled (WIN+LOSE)", run1.settled, 2)
@@ -175,8 +177,10 @@ def part_b(dv: object, repo: object) -> bool:
 
     # Idempotency: re-running settles nothing new and leaves balances untouched.
     run2 = engine.settle_session(SESSION_KEY, datetime.now(timezone.utc))
-    print(f"  run 2: settled={run2.settled} voided={run2.voided} "
-          f"reconciled={run2.reconciled} unchanged={run2.unchanged}")
+    print(
+        f"  run 2: settled={run2.settled} voided={run2.voided} "
+        f"reconciled={run2.reconciled} unchanged={run2.unchanged}"
+    )
     ok &= _check("run2 unchanged (idempotent)", run2.unchanged, 3)
     ok &= _check("run2 no new settlements", run2.settled + run2.voided + run2.reconciled, 0)
     for player, _slip, _c, _p, _s, _o, _k, _pay, bal in seeds:
@@ -200,8 +204,10 @@ def main() -> int:
 
     ok_a = part_a(repo)
     ok_b = part_b(dv, repo)
-    print(f"\n{'ALL PASS' if ok_a and ok_b else 'FAILURES PRESENT'} "
-          f"(Part A: {'ok' if ok_a else 'FAIL'}, Part B: {'ok' if ok_b else 'FAIL'})")
+    print(
+        f"\n{'ALL PASS' if ok_a and ok_b else 'FAILURES PRESENT'} "
+        f"(Part A: {'ok' if ok_a else 'FAIL'}, Part B: {'ok' if ok_b else 'FAIL'})"
+    )
     return 0 if ok_a and ok_b else 1
 
 

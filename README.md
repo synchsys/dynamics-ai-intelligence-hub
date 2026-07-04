@@ -1,5 +1,9 @@
 # dynamics-ai-intelligence-hub
 
+[![CI](https://github.com/synchsys/dynamics-ai-intelligence-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/synchsys/dynamics-ai-intelligence-hub/actions/workflows/ci.yml)
+[![coverage gate: 80%](https://img.shields.io/badge/coverage%20gate-80%25-brightgreen)](#running-checks-locally)
+[![python: 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](pyproject.toml)
+
 Portfolio-grade reference implementation for an AI & ML Solution Architect
 transition: professional Python, Azure AI + Azure Functions, Dynamics 365 &
 Dataverse, a client-agnostic CRM domain model, REST integration (OpenF1/FastF1),
@@ -32,7 +36,8 @@ toolchain lives under the `dev` optional-dependency group.
 
 ## Running checks locally
 
-Run these gates before pushing (a CI workflow to enforce them is story #9):
+These are the exact gates [CI](.github/workflows/ci.yml) runs on every push and
+pull request — run them before pushing:
 
 ```bash
 ruff check .              # lint (pycodestyle, pyflakes, isort, pyupgrade, bugbear, simplify)

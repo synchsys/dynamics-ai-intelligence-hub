@@ -42,9 +42,21 @@ def main() -> int:
     ki = KnowledgeIndex(config)
 
     docs = [
-        Document("policies.md", "The staff canteen opens at 8am.", access_tag="public", section="Canteen"),
-        Document("policies.md", "Internal only: the Q4 reorg plan affects the sales team.", access_tag="internal", section="Reorg"),
-        Document("policies.md", "Confidential: acquisition target is Globex, offer 40M.", access_tag="confidential", section="M&A"),
+        Document(
+            "policies.md", "The staff canteen opens at 8am.", access_tag="public", section="Canteen"
+        ),
+        Document(
+            "policies.md",
+            "Internal only: the Q4 reorg plan affects the sales team.",
+            access_tag="internal",
+            section="Reorg",
+        ),
+        Document(
+            "policies.md",
+            "Confidential: acquisition target is Globex, offer 40M.",
+            access_tag="confidential",
+            section="M&A",
+        ),
     ]
     run = embed_chunks(client, ingest(docs).chunks)
     print(f"chunks={run.embedded} dims={run.dimensions}")

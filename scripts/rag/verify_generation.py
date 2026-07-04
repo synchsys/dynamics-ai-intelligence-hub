@@ -49,7 +49,9 @@ def main() -> int:
     config = dataclasses.replace(SearchConfig.from_env(), index="racy-knowledge-verify")
     ki = KnowledgeIndex(config)
 
-    run = embed_chunks(client, ingest_markdown([("regs.md", SOURCE, "public")], size=200, overlap=40).chunks)
+    run = embed_chunks(
+        client, ingest_markdown([("regs.md", SOURCE, "public")], size=200, overlap=40).chunks
+    )
     print(f"chunks={run.embedded} dims={run.dimensions}")
 
     ok = True
@@ -64,14 +66,20 @@ def main() -> int:
         retriever = Retriever(ki, client)
         retrieved_ids = {c.id for c in retriever.retrieve("when can DRS be used?", top_k=3)}
 
-        grounded = generate_answer(client, "When is a driver allowed to use DRS?",
-                                   retriever.retrieve("When is a driver allowed to use DRS?", top_k=3))
+        grounded = generate_answer(
+            client,
+            "When is a driver allowed to use DRS?",
+            retriever.retrieve("When is a driver allowed to use DRS?", top_k=3),
+        )
         print(f"answer: {grounded.answer.strip()[:160]}")
         print(f"citations: {[c.id for c in grounded.citations]}")
         cited_ok = grounded.is_grounded and any(c.id in retrieved_ids for c in grounded.citations)
 
-        offtopic = generate_answer(client, "What is the capital of France?",
-                                   retriever.retrieve("What is the capital of France?", top_k=3))
+        offtopic = generate_answer(
+            client,
+            "What is the capital of France?",
+            retriever.retrieve("What is the capital of France?", top_k=3),
+        )
         print(f"off-topic grounded={offtopic.is_grounded}")
 
         ok = cited_ok  # the AC: >=1 citation resolves to a retrieved chunk

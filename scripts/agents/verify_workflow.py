@@ -38,7 +38,14 @@ def main() -> int:
     from ai import AIClient, AzureOpenAIConfig, build_crm_tools
     from dataverse.client import DataverseClient
     from dataverse.config import DataverseConfig
-    from rag import KnowledgeIndex, RagAssistant, Retriever, SearchConfig, embed_chunks, ingest_markdown
+    from rag import (
+        KnowledgeIndex,
+        RagAssistant,
+        Retriever,
+        SearchConfig,
+        embed_chunks,
+        ingest_markdown,
+    )
 
     client = AIClient(AzureOpenAIConfig.from_env())
     dv = DataverseClient(DataverseConfig.from_env())
@@ -60,7 +67,9 @@ def main() -> int:
         tools = build_crm_tools(dv, dv)  # lookup_records + guarded create_followup_activity
         tools.registry.register(knowledge_search_tool(rag, roles=["employee"]))
         workflow = MultiAgentWorkflow(
-            client, researcher=Researcher(registry=tools.registry), broker=tools.broker,
+            client,
+            researcher=Researcher(registry=tools.registry),
+            broker=tools.broker,
             on_event=lambda e: print(f"  · {e.step} [{e.agent}] {e.summary}"),
         )
 
@@ -77,7 +86,9 @@ def main() -> int:
             and len(result.report) > 0
             and agents_seen == {"planner", "researcher", "reviewer", "reporter"}
         )
-        print(f"all four agents ran: {agents_seen == {'planner', 'researcher', 'reviewer', 'reporter'}}")
+        print(
+            f"all four agents ran: {agents_seen == {'planner', 'researcher', 'reviewer', 'reporter'}}"
+        )
     finally:
         ki.delete()
         # Only clean up tasks if a staged write was ever approved (it isn't here).

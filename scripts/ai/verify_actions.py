@@ -58,14 +58,18 @@ def main() -> int:
         print(f"tool calls: {[(c.name, c.ok) for c in result.calls]}")
 
         pending = tools.broker.pending
-        blocked = len(dv.retrieve_multiple('tasks', filter="subject eq 'Call Acme about renewal'")) == 0
+        blocked = (
+            len(dv.retrieve_multiple("tasks", filter="subject eq 'Call Acme about renewal'")) == 0
+        )
         print(f"staged (awaiting approval): {[p.summary for p in pending]}")
         print(f"write blocked before approval: {blocked}")
         ok &= len(pending) == 1 and blocked
 
         # Human approves -> the write now executes.
         created_task_id = tools.broker.approve(pending[0].action_id)
-        executed = len(dv.retrieve_multiple('tasks', filter="subject eq 'Call Acme about renewal'")) == 1
+        executed = (
+            len(dv.retrieve_multiple("tasks", filter="subject eq 'Call Acme about renewal'")) == 1
+        )
         print(f"write executed after approval: {executed}  (task {created_task_id})")
         ok &= executed
     finally:

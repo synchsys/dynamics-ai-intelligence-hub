@@ -48,8 +48,10 @@ def main() -> int:
         report = evaluate(make_rag_run(Retriever(ki, client), client), DEFAULT_EVAL_SET)
         print("\n" + report.summary())
         for weak in report.weaknesses:
-            print(f"  WEAK: {weak.case.question!r} "
-                  f"(hit={weak.hit} grounded={weak.grounded} relevant={weak.relevant})")
+            print(
+                f"  WEAK: {weak.case.question!r} "
+                f"(hit={weak.hit} grounded={weak.grounded} relevant={weak.relevant})"
+            )
     finally:
         ki.delete()
         print("deleted temp index")
