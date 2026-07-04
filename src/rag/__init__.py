@@ -36,6 +36,7 @@ from rag.ingestion import (
     retag,
     split_markdown_sections,
 )
+from rag.retrieval import DEFAULT_TOP_K, RetrievedChunk, Retriever, as_context
 
 __all__ = [
     # ingestion (#67)
@@ -67,4 +68,9 @@ __all__ = [
     "to_document",
     "document_key",
     "VECTOR_DIMENSIONS",
+    # retrieval (#71)
+    "Retriever",
+    "RetrievedChunk",
+    "as_context",
+    "DEFAULT_TOP_K",
 ]

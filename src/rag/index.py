@@ -169,3 +169,18 @@ class KnowledgeIndex:
             search_text=None, vector_queries=[query], top=top, filter=access_filter
         )
         return [_to_hit(r) for r in results]
+
+    def hybrid_search(
+        self,
+        query_text: str,
+        vector: Sequence[float],
+        *,
+        top: int = 5,
+        access_filter: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Combined keyword + vector query; Azure fuses the two via RRF (``@search.score``)."""
+        query = VectorizedQuery(vector=list(vector), k_nearest_neighbors=top, fields="vector")
+        results = self._search_client.search(
+            search_text=query_text, vector_queries=[query], top=top, filter=access_filter
+        )
+        return [_to_hit(r) for r in results]

@@ -187,6 +187,23 @@ def test_vector_search_builds_query_and_maps_hits() -> None:
     assert hits[0]["section"] is None and hits[0]["score"] is None
 
 
+def test_hybrid_search_sends_text_and_vector() -> None:
+    hit = {
+        "id": "k",
+        "content": "c",
+        "source": "regs.md",
+        "section": "Rules",
+        "access_tag": "public",
+    }
+    ki, _, sc = _index([hit])
+    hits = ki.hybrid_search("drs zones", [0.1, 0.2], top=4, access_filter="access_tag eq 'public'")
+    call = sc.searches[0]
+    assert call["search_text"] == "drs zones"  # keyword leg
+    assert len(call["vector_queries"]) == 1  # vector leg
+    assert call["top"] == 4 and call["filter"] == "access_tag eq 'public'"
+    assert hits[0]["source"] == "regs.md"
+
+
 def test_default_clients_are_constructed(monkeypatch: pytest.MonkeyPatch) -> None:
     built: dict[str, Any] = {}
 
