@@ -4,6 +4,7 @@ Ingestion and chunking (#67) → embeddings (#68) → Azure AI Search index (#70
 hybrid + permission-aware retrieval (#71/#72) → cited answers (#73).
 """
 
+from rag.assistant import RagAssistant
 from rag.embeddings import (
     DEFAULT_BATCH_SIZE,
     EmbeddedChunk,
@@ -92,4 +93,6 @@ __all__ = [
     "generate_answer",
     "CitedAnswer",
     "Citation",
+    # assembly (#25)
+    "RagAssistant",
 ]
