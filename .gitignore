@@ -440,3 +440,6 @@ htmlcov/
 
 # Local-only Claude Code settings (permissions allowlist)
 .claude/settings.local.json
+
+# FastF1 telemetry cache (Epic 5)
+datasets/fastf1-cache/
