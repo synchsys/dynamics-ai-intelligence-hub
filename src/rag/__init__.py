@@ -14,6 +14,7 @@ from rag.embeddings import (
     content_hash,
     embed_chunks,
 )
+from rag.generation import Citation, CitedAnswer, generate_answer
 from rag.index import (
     VECTOR_DIMENSIONS,
     KnowledgeIndex,
@@ -87,4 +88,8 @@ __all__ = [
     "DEFAULT_POLICY",
     "ACCESS_LEVELS",
     "DEFAULT_ROLE_ACCESS",
+    # generation (#73)
+    "generate_answer",
+    "CitedAnswer",
+    "Citation",
 ]
