@@ -14,6 +14,14 @@ from rag.embeddings import (
     content_hash,
     embed_chunks,
 )
+from rag.index import (
+    VECTOR_DIMENSIONS,
+    KnowledgeIndex,
+    SearchConfig,
+    build_index,
+    document_key,
+    to_document,
+)
 from rag.ingestion import (
     DEFAULT_CHUNK_OVERLAP,
     DEFAULT_CHUNK_SIZE,
@@ -52,4 +60,11 @@ __all__ = [
     "embed_chunks",
     "content_hash",
     "DEFAULT_BATCH_SIZE",
+    # index (#70)
+    "SearchConfig",
+    "KnowledgeIndex",
+    "build_index",
+    "to_document",
+    "document_key",
+    "VECTOR_DIMENSIONS",
 ]

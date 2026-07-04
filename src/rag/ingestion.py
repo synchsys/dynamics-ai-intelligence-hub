@@ -130,9 +130,14 @@ def ingest(
     """Chunk each document, carrying source/section/access-tag metadata onto every chunk."""
     chunks: list[Chunk] = []
     doc_count = 0
+    # A per-source running index so chunks from different sections of the same
+    # source get distinct ids (source#index) — the id is the search-doc key (#70).
+    next_index: dict[str, int] = {}
     for doc in documents:
         doc_count += 1
-        for index, piece in enumerate(chunk_text(doc.text, size=size, overlap=overlap)):
+        for piece in chunk_text(doc.text, size=size, overlap=overlap):
+            index = next_index.get(doc.source, 0)
+            next_index[doc.source] = index + 1
             chunks.append(
                 Chunk(
                     source=doc.source,
