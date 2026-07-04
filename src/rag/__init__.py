@@ -36,7 +36,16 @@ from rag.ingestion import (
     retag,
     split_markdown_sections,
 )
-from rag.retrieval import DEFAULT_TOP_K, RetrievedChunk, Retriever, as_context
+from rag.retrieval import (
+    ACCESS_LEVELS,
+    DEFAULT_POLICY,
+    DEFAULT_ROLE_ACCESS,
+    DEFAULT_TOP_K,
+    AccessPolicy,
+    RetrievedChunk,
+    Retriever,
+    as_context,
+)
 
 __all__ = [
     # ingestion (#67)
@@ -73,4 +82,9 @@ __all__ = [
     "RetrievedChunk",
     "as_context",
     "DEFAULT_TOP_K",
+    # permission-aware retrieval (#72)
+    "AccessPolicy",
+    "DEFAULT_POLICY",
+    "ACCESS_LEVELS",
+    "DEFAULT_ROLE_ACCESS",
 ]
