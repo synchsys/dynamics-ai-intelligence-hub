@@ -32,7 +32,11 @@ python -m pip install -e ".[dev]"
 
 Dependency management uses **pip + `pyproject.toml`** (editable install). Runtime
 dependencies live under `[project.dependencies]`; the lint/format/type/test
-toolchain lives under the `dev` optional-dependency group.
+toolchain lives under the `dev` optional-dependency group. The ML & data pillar
+(FastF1, pandas, …) lives under the **`analytics`** extra — install it with
+`pip install -e ".[dev,analytics]"` (this is what CI installs). FastF1 caches
+telemetry to `datasets/fastf1-cache/` (git-ignored) so sessions load fast and
+reproducibly on repeat runs.
 
 ## Running checks locally
 
