@@ -63,10 +63,38 @@ the actual mutation stays behind the human gate — the concrete case of
 human-in-the-loop (#80). Verified live (`scripts/ai/verify_actions.py`): the
 follow-up is blocked before approval and created only after.
 
+## RAG grounding (#65)
+
+The assistant can be given an optional **knowledge source** — the Epic 9 RAG
+assistant (#25) — for cited, permission-aware answers to knowledge questions:
+
+```
+ask(question)
+  ─► knowledge.ask(question, roles)     # RAG: permission-aware, cited
+        ─► grounded?  ── yes ──► return the cited answer (grounded_in="knowledge")
+        └─ no ─► fall back to CRM-data answer (grounded_in="crm")
+```
+
+The knowledge source is a structural **`KnowledgeSource` Protocol** (`ask(question,
+roles) -> GroundedAnswer`), so `ai` does not import `rag` (which depends on `ai`)
+— the `RagAssistant` is injected and duck-types the contract, avoiding a
+dependency cycle. The caller's `roles` are forwarded so RAG enforces access at
+retrieval time. `AssistantAnswer` now carries `citations` and `grounded_in`
+(`"knowledge"` or `"crm"`).
+
+**Routing:** RAG is tried first; if it grounds (finds relevant, permitted
+sources) its cited answer is returned, otherwise the assistant falls back to the
+Dataverse-data path — so knowledge questions get cited answers and CRM questions
+still work when the knowledge base has nothing relevant. Verified live
+(`scripts/ai/verify_assistant_rag.py`): a DRS question is answered from RAG with a
+citation; an accounts question falls back to Dataverse.
+
 ## Testing
 
-The model, retriever, logger, and gateways are all injected, so the assistant
-and tools are unit-tested hermetically (grounded answer, history, reset, logging;
-read executes, write blocked until approved, approve/reject audit trail). Live
-smoke tests (`scripts/ai/verify_assistant.py`, `verify_actions.py`) exercise the
-full paths against Azure OpenAI + Dataverse and clean up after themselves.
+The model, retriever, logger, gateways, and knowledge source are all injected, so
+the assistant and tools are unit-tested hermetically (grounded answer, history,
+reset, logging; read executes, write blocked until approved, approve/reject audit
+trail; RAG-grounded vs CRM-fallback routing). Live smoke tests
+(`scripts/ai/verify_assistant.py`, `verify_actions.py`, `verify_assistant_rag.py`)
+exercise the full paths against Azure OpenAI + Dataverse and clean up after
+themselves.
