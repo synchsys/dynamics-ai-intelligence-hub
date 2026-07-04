@@ -4,34 +4,45 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-This repository is at the **planning stage — there is no code yet.** The only content is a product backlog under `Backlog/` (a `files.zip` plus two extracted Markdown files). Do not assume any `src/`, `tests/`, tooling, or git history exists until you have verified it; the structure below is the *target*, not the current reality.
+This repository is **under active implementation** — substantial code exists across `src/`, `tests/`, `docs/`, and `scripts/`. The GenAI (Epic 8), RAG (Epic 9), and Agents (Epic 10) pillars are built and live-verified, alongside the Dataverse client, OpenF1 ingestion, and the Paddock Club predictions game. Still verify what's actually on disk before assuming — the "Repository structure" section below marks what is implemented vs. still a placeholder.
 
-The two backlog documents are the source of truth:
+**The backlog lives in GitHub — that is canonical:** GitHub Issues + Project #2 (`synchsys/dynamics-ai-intelligence-hub`), organised Epic → Feature → Story → Task via sub-issues, with Milestones and `type:`/`priority:`/`effort:` labels. When asked to "build X" or "start on Y", find the issue there and follow its User Story / tasks / Definition of Done / suggested branch / labels. Managed via the `github-backlog-management` skills.
 
-- `Backlog/Dynamics_AI_Intelligence_Hub_Backlog_v0_4.md` — the narrative backlog: vision, product goals, six-month roadmap, milestones, dependency risks, workload analysis, and the Epic → Feature → Story → Task breakdown.
-- `Backlog/Dynamics_AI_Intelligence_Hub_Complete_Issue_Set.md` — the full issue register: all 87 GitHub issues (85 stories + 2 spikes, 337 story points) with IDs (1.1 → 12.8), story points, milestones, the ADR register, critical dependency chains, and copy-paste-ready issue bodies.
+The two Markdown documents under `Backlog/` are the **original input** (now migrated to GitHub — treat as read-only source, not the live tracker):
 
-When asked to "build X" or "start on Y", locate the corresponding issue ID in the register first and follow its User Story / tasks / Definition of Done, its suggested branch name, and its labels.
+- `Backlog/Dynamics_AI_Intelligence_Hub_Backlog_v0_4.md` — the narrative backlog: vision, roadmap, milestones, dependency risks, and the Epic → Feature → Story → Task breakdown.
+- `Backlog/Dynamics_AI_Intelligence_Hub_Complete_Issue_Set.md` — the original issue register (87 issues, IDs 1.1 → 12.8), plus later Paddock Club rework additions (Epic 13). Note the GitHub issue **numbers** differ from these source IDs.
+
+## Live environment
+
+Azure resources are provisioned (dev; secrets in git-ignored `.env`, **rotate before anything public**; Managed Identity is Epic 11):
+
+- **Dataverse** `racy-dev` with the `racy_` schema (F1 + Paddock + AI-logging tables), via a service principal.
+- **Azure OpenAI** `racy-openai-dev` (uksouth) — `gpt-5-mini` chat + `text-embedding-3-small`; Entra auth reusing the Dataverse SP. Note: the gpt-4o generation is deprecated — use GPT-5-family models, which reject an explicit `temperature`.
+- **Azure AI Search** `racy-search-dev` (Free tier) — vector + keyword; dev uses the admin key.
+
+`scripts/**/verify_*.py` are live smoke tests for each capability (they create + clean up their own data).
 
 ## What is being built
 
 **Dynamics AI Intelligence Hub** — a portfolio-grade, production-style reference implementation for a six-month transition from Microsoft Solution Architect to AI & ML Solution Architect. It combines: professional Python, Azure AI + Azure Functions, Dynamics 365 & Dataverse, a client-agnostic CRM domain model, REST integration (OpenF1/FastF1 F1 data), Pandas data engineering, ML, RAG, AI agents, Azure AI Search, and security/governance/observability.
 
-## Target repository structure
+## Repository structure
 
-Create directories under `src/` as their owning epic is worked; each maps to a deliverable in the backlog:
+Packages under `src/` (✅ = implemented + tested, live-verified; 🚧 = placeholder `__init__.py` only, not yet built):
 
-- `src/shared` — config loader, structured logging, exception hierarchy, **resilience** (timeout + exponential-backoff-with-jitter retry). Consumed by every other module — build this first and do not reimplement retry logic elsewhere.
-- `src/api` — reusable REST client (retries, timeouts, structured logging) built on `src/shared`; foundation for OpenF1.
-- `src/dataverse` — authenticated Dataverse Web API client (read/write, upsert, batch). **Silent prerequisite for OpenF1, FastF1 publishing, and the GenAI assistant** — schedule early.
-- `src/openf1` — OpenF1 ingestion on top of `src/api`, persisting to Dataverse via `src/dataverse`.
-- `src/fastf1_analytics` — telemetry analysis helpers feeding notebook templates.
-- `src/ai` — Azure OpenAI integration, prompt engineering, structured outputs, function calling, CRM assistant.
-- `src/rag` — document ingestion/chunking, embeddings, Azure AI Search, hybrid + permission-aware retrieval, cited answers.
-- `src/agents` — multi-agent orchestration (planner → researcher → reviewer → reporter) reusing the `src/ai` tool layer and `src/rag`.
-- `src/azure_functions` — serverless platform foundation (timer/HTTP triggers); **established once and reused** by OpenF1, GenAI, and agents.
+- ✅ `src/shared` — config loader, structured logging, exception hierarchy, **resilience** (timeout + exponential-backoff-with-jitter retry). Consumed by every other module — do not reimplement retry logic elsewhere.
+- ✅ `src/api` — reusable REST client (retries, timeouts, structured logging) on `src/shared`.
+- ✅ `src/dataverse` — authenticated Dataverse Web API client (read/write, upsert, atomic `$batch`).
+- ✅ `src/openf1` — OpenF1 ingestion on `src/api`, persisting to Dataverse.
+- ✅ `src/ai` — Azure OpenAI client, prompt library, structured outputs, **the function-calling tool layer**, prompt/response logging (`prompt_log`), guarded CRM action tools, and the CRM assistant (`assistant/`).
+- ✅ `src/rag` — ingestion/chunking, embeddings, Azure AI Search index, hybrid + permission-aware retrieval, cited generation, the assembled `RagAssistant`, and an evaluation harness.
+- ✅ `src/agents` — the `Agent` primitive, the four core agents (planner → researcher → reviewer → reporter), and the `MultiAgentWorkflow`. **Layered above both `ai` and `rag`** (imports either freely; neither imports `agents`) — reuses the `ai` tool layer (ADR-0006) and wraps the RAG assistant as a researcher tool.
+- ✅ `src/paddock` — the Paddock Club predictions game (Epic 13): odds pricing, the settlement registry + deterministic grading, wager lock + settlement engine, and the LLM free-text `intake`. (Not in the original backlog structure; added in the 2026-07 rework.)
+- 🚧 `src/fastf1_analytics` — telemetry analysis helpers (placeholder).
+- 🚧 `src/azure_functions` — serverless timer/HTTP triggers to host ingestion, the assistant, and the agent workflow (placeholder).
 
-Supporting trees: `tests/` (mirrors `src/`), `notebooks/`, `datasets/` (`openf1/`, `audit-history/`, `sample-crm/`), `docs/` (`architecture/`, `decisions/` for ADRs, `diagrams/`, `learning/`, `security/`, `retrospectives/`), `infrastructure/` (`bicep/`, `terraform/`, `environments/`), `portfolio/`.
+Supporting trees: `tests/` (mirrors `src/`), `scripts/` (per-capability live `verify_*.py` + Dataverse schema tooling), `docs/` (`architecture/`, `decisions/` for ADRs, `security/`, `learning/`), `infrastructure/` (`bicep/`, `terraform/`, `environments/`), plus `notebooks/`, `datasets/`, `portfolio/`.
 
 ## Architecture: dependencies and layering
 
@@ -55,13 +66,15 @@ The CRM is deliberately **client-agnostic** (no customer-specific naming). Entit
 
 These come from the backlog and issue drafts — follow them when scaffolding:
 
-- **Python 3.12+.** Tooling target: **Ruff** (lint) + **Black** (format) + **pytest** (test) + **mypy** (types). None of this is configured yet; when you set it up, wire it into a CI workflow (lint, format check, type check, tests) with a coverage gate. Reusable utility modules target ≥ 90% coverage.
+- **Python 3.12+.** Tooling is configured in `pyproject.toml`: **Ruff** (lint, `E/F/I/UP/B/SIM`; `scripts/` excluded) + **Black** (line-length 100) + **mypy** `--strict` (pydantic plugin) + **pytest** + **pytest-cov**. Every gate must be clean before a PR: `ruff check . && black --check . && mypy src tests && pytest`. Coverage is deliberately **not** in `addopts` (it breaks editor test discovery) — run it explicitly: `pytest --cov=src --cov-fail-under=80`; the practice in this repo is **100% coverage on new `src/` code** (inject SDKs/gateways/loggers so units test hermetically). A **CI workflow is not yet set up** (`.github/workflows/` is empty) — wire one up (all four gates + coverage) when you get to story #9.
 - **Branch naming:** `feat/<area>-<short-desc>` (e.g. `feat/dataverse-api-client`), per the "Suggested branch" line in each issue.
 - **PR titles:** Conventional Commits scoped by area, e.g. `feat(dataverse): reusable Dataverse Web API client with service principal auth`.
 - **Response validation:** external API responses are validated with **Pydantic** models before persistence.
-- **ADRs** live in `docs/decisions/`. Open decisions tracked in the ADR register: IaC tool (Bicep vs Terraform — Bicep is the Microsoft-aligned default; both trees currently planned, only one should be primary), Dataverse auth (service principal → Managed Identity), Functions hosting model, CRM schema approach, plus ADR-0006/0007 above.
+- **ADRs** live in `docs/decisions/`. Recorded: **0003** Dataverse auth (service principal now → Managed Identity in Epic 11), **0006** function-calling vs agent-orchestration boundary, **0007** agent framework (custom orchestration over the `ai` tool layer), **0008** odds/settlement (multi-source, void-don't-guess, virtual credits), **0009** experience surface + business-logic placement. Still open: IaC tool primary (Bicep vs Terraform — both trees exist; Bicep is the Microsoft-aligned default), Functions hosting model, CRM schema approach. (Historical note: an early draft mislabeled the experience-surface decision as "ADR-0007"; that slot is the agent-framework ADR, and the experience decision is 0009.)
 - **Secrets:** local development uses `.env` / `.env.example` only. Production secrets/identity (Key Vault + Managed Identity) are owned by Epic 11 — do not hardcode production credentials into feature code.
 
 ## Workload note
 
 The backlog is costed at 337 story points and treats six months as the aggressive case. Months 5 (GenAI/RAG/Agents) and 2 (Dataverse) are the pressure points. When work must slip, the backlog's guidance is to defer lower-priority items (clustering model, notebook templates, parts of Epic 11 hardening) rather than the end-to-end **assembly stories** (RAG assistant, multi-agent workflow) or the governance spine — those are the portfolio's differentiators.
+
+**Status:** both headline differentiators are **delivered and live-verified** — the end-to-end RAG assistant (Epic 9) and the multi-agent workflow (Epic 10), alongside the GenAI/assistant spine (Epic 8) and the Paddock Club game (Epic 13). Remaining major work is platform/experience (Azure Functions #10/#20, model-driven app UI #11/#12), Epic 11 hardening, Epic 7 ML, and the Epic 12 capstone assembly.
