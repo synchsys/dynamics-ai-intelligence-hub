@@ -6,7 +6,12 @@ from ai.assistant.retriever import (
     EntityView,
     ReadGateway,
 )
-from ai.assistant.service import AssistantAnswer, CrmAssistant
+from ai.assistant.service import (
+    AssistantAnswer,
+    CrmAssistant,
+    GroundedAnswer,
+    KnowledgeSource,
+)
 
 __all__ = [
     "CrmAssistant",
@@ -15,4 +20,6 @@ __all__ = [
     "DataverseCrmRetriever",
     "EntityView",
     "ReadGateway",
+    "KnowledgeSource",
+    "GroundedAnswer",
 ]
