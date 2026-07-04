@@ -36,15 +36,22 @@ def main() -> int:
 
     ok = True
 
-    r1 = run_tools(client, [{"role": "user", "content": "What is 21 + 21? Use the add tool."}], registry)
+    r1 = run_tools(
+        client, [{"role": "user", "content": "What is 21 + 21? Use the add tool."}], registry
+    )
     called_add = any(c.name == "add" and c.ok for c in r1.calls)
     print(f"add    -> {r1.content.strip()!r}  (tool used: {called_add})")
     ok &= called_add and "42" in r1.content
 
     r2 = run_tools(
         client,
-        [{"role": "user", "content": "How many rows are in racy_sessionresults for session 9165? "
-          "Use count_records with OData filter 'racy_sessionkey eq 9165'."}],
+        [
+            {
+                "role": "user",
+                "content": "How many rows are in racy_sessionresults for session 9165? "
+                "Use count_records with OData filter 'racy_sessionkey eq 9165'.",
+            }
+        ],
         registry,
     )
     counted = next((c for c in r2.calls if c.name == "count_records" and c.ok), None)

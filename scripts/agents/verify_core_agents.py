@@ -33,7 +33,9 @@ def main() -> int:
     client = AIClient(AzureOpenAIConfig.from_env())
     dv = DataverseClient(DataverseConfig.from_env())
 
-    plan = Planner().plan(client, "Report how many drivers finished the 2023 Singapore GP (session 9165)")
+    plan = Planner().plan(
+        client, "Report how many drivers finished the 2023 Singapore GP (session 9165)"
+    )
     print(f"planner -> {len(plan.steps)} step(s): {plan.steps}")
 
     registry = ToolRegistry()
@@ -47,10 +49,17 @@ def main() -> int:
     review = Reviewer().review(client, findings, goal="state the number of session-9165 results")
     print(f"reviewer -> approved={review.approved} summary={review.summary!r}")
 
-    report = Reporter().report(client, f"Goal: session 9165 result count\nFindings: {findings}\nReview: {review.summary}")
+    report = Reporter().report(
+        client, f"Goal: session 9165 result count\nFindings: {findings}\nReview: {review.summary}"
+    )
     print(f"reporter -> {report.strip()[:120]}")
 
-    ok = bool(plan.steps) and "19" in findings and isinstance(review.approved, bool) and len(report) > 0
+    ok = (
+        bool(plan.steps)
+        and "19" in findings
+        and isinstance(review.approved, bool)
+        and len(report) > 0
+    )
     print("OK" if ok else "FAILURES PRESENT")
     return 0 if ok else 1
 

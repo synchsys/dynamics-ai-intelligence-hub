@@ -57,12 +57,17 @@ def main() -> int:
         unknown = assistant.ask("What is our Q4 revenue forecast?")
         print(f"Q2 -> {unknown.text.strip()[:200]}")
         # Should not fabricate a figure; expect a graceful "don't have" style answer.
-        declined = any(p in unknown.text.lower() for p in ("don't", "do not", "no ", "not have", "unable"))
+        declined = any(
+            p in unknown.text.lower() for p in ("don't", "do not", "no ", "not have", "unable")
+        )
         ok &= declined
 
         print(f"grounded={grounded_ok}  declined_unknown={declined}")
     finally:
-        for es, rows_key in (("racy_airequests", "racy_airequestid"), ("racy_airesponses", "racy_airesponseid")):
+        for es, rows_key in (
+            ("racy_airequests", "racy_airequestid"),
+            ("racy_airesponses", "racy_airesponseid"),
+        ):
             rows = dv.retrieve_multiple(es)
             for r in rows:
                 dv.delete(es, r[rows_key])

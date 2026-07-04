@@ -28,8 +28,10 @@ def main() -> int:
 
     config = AzureOpenAIConfig.from_env()
     client = AIClient(config)
-    print(f"endpoint={config.endpoint}  chat={config.chat_deployment}  "
-          f"embed={config.embedding_deployment}  auth={'key' if config.uses_key else 'entra'}")
+    print(
+        f"endpoint={config.endpoint}  chat={config.chat_deployment}  "
+        f"embed={config.embedding_deployment}  auth={'key' if config.uses_key else 'entra'}"
+    )
 
     reply = client.chat([{"role": "user", "content": "Reply with exactly: pong"}])
     print(f"chat -> {reply!r}")
