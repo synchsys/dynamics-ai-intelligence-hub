@@ -1,6 +1,7 @@
 """End-to-end tests for the multi-agent workflow (#26)."""
 
 import json
+from collections.abc import Mapping
 from types import SimpleNamespace
 from typing import Any
 
@@ -94,6 +95,96 @@ def test_telemetry_callback_receives_every_step() -> None:
     result = MultiAgentWorkflow(client, on_event=seen.append).run("goal")
     assert seen == result.trace
     assert {e.agent for e in seen} == {"planner", "researcher", "reviewer", "reporter"}
+
+
+def _with_usage(response: SimpleNamespace, total: int) -> SimpleNamespace:
+    response.usage = SimpleNamespace(total_tokens=total)
+    return response
+
+
+class RecordingSink:
+    """Captures each track_event call for assertions (App Insights stand-in)."""
+
+    def __init__(self) -> None:
+        self.events: list[dict[str, Any]] = []
+
+    def track_event(
+        self,
+        name: str,
+        *,
+        properties: Mapping[str, str],
+        measurements: Mapping[str, float],
+    ) -> None:
+        self.events.append(
+            {"name": name, "properties": dict(properties), "measurements": dict(measurements)}
+        )
+
+
+def test_steps_are_correlated_under_one_run_id_in_order() -> None:
+    client = _client(
+        [
+            _json({"steps": ["one"]}),
+            _text("found it"),
+            _json({"approved": True, "issues": [], "summary": "ok"}),
+            _text("report"),
+        ]
+    )
+    result = MultiAgentWorkflow(client, run_id_factory=lambda: "RUN-1").run("goal")
+    # Every step shares the run id, and sequence is a dense 0..n ordering.
+    assert {e.run_id for e in result.trace} == {"RUN-1"}
+    assert [e.sequence for e in result.trace] == list(range(len(result.trace)))
+
+
+def test_each_step_is_timed_with_the_injected_clock() -> None:
+    client = _client(
+        [
+            _json({"steps": ["one"]}),
+            _text("found it"),
+            _json({"approved": True, "issues": [], "summary": "ok"}),
+            _text("report"),
+        ]
+    )
+    ticks = iter(float(n) for n in range(100))  # start/end pairs advance by 1s each
+    result = MultiAgentWorkflow(client, clock=lambda: next(ticks)).run("goal")
+    assert [e.duration_ms for e in result.trace] == [1000.0, 1000.0, 1000.0, 1000.0]
+
+
+def test_per_step_tokens_are_metered_from_usage() -> None:
+    client = _client(
+        [
+            _with_usage(_json({"steps": ["one"]}), 10),  # planner
+            _with_usage(_text("found it"), 20),  # researcher
+            _with_usage(_json({"approved": True, "issues": [], "summary": "ok"}), 30),  # reviewer
+            _with_usage(_text("report"), 40),  # reporter
+        ]
+    )
+    result = MultiAgentWorkflow(client).run("goal")
+    assert [e.tokens for e in result.trace] == [10, 20, 30, 40]
+    # The usage hook is restored after the run (no lingering side effect).
+    assert client.on_usage is None
+
+
+def test_telemetry_sink_receives_a_correlated_event_per_step() -> None:
+    client = _client(
+        [
+            _with_usage(_json({"steps": ["one"]}), 10),
+            _with_usage(_text("found it"), 20),
+            _with_usage(_json({"approved": True, "issues": [], "summary": "ok"}), 30),
+            _with_usage(_text("report"), 40),
+        ]
+    )
+    sink = RecordingSink()
+    MultiAgentWorkflow(client, telemetry=sink, run_id_factory=lambda: "RUN-1").run("goal")
+    assert [e["name"] for e in sink.events] == ["agent.step"] * 4
+    assert {e["properties"]["run_id"] for e in sink.events} == {"RUN-1"}
+    assert [e["properties"]["step"] for e in sink.events] == [
+        "plan",
+        "research[0]",
+        "review",
+        "report",
+    ]
+    assert [e["measurements"]["tokens"] for e in sink.events] == [10.0, 20.0, 30.0, 40.0]
+    assert all("duration_ms" in e["measurements"] for e in sink.events)
 
 
 def test_write_action_is_staged_pending_approval() -> None:

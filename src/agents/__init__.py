@@ -10,6 +10,7 @@ from agents.planner import Plan, Planner
 from agents.reporter import Reporter
 from agents.researcher import Researcher
 from agents.reviewer import Review, Reviewer
+from agents.telemetry import LoggingTelemetrySink, TelemetrySink
 from agents.workflow import (
     MultiAgentWorkflow,
     TraceEvent,
@@ -29,5 +30,7 @@ __all__ = [
     "MultiAgentWorkflow",
     "WorkflowResult",
     "TraceEvent",
+    "TelemetrySink",
+    "LoggingTelemetrySink",
     "knowledge_search_tool",
 ]
