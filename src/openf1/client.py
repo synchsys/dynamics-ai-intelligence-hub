@@ -18,6 +18,7 @@ from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 from api.client import RestClient
+from api.exceptions import ApiStatusError
 from shared.logging import get_logger
 
 DEFAULT_BASE_URL = "https://api.openf1.org/v1"
@@ -43,7 +44,16 @@ class OpenF1Client:
     def _get(self, endpoint: str, filters: Mapping[str, FilterValue]) -> list[dict[str, Any]]:
         params = {key: value for key, value in filters.items() if value is not None}
         self._log.info("openf1 GET /%s %s", endpoint, params or "")
-        response = self._rest.get(f"/{endpoint}", params=params or None)
+        try:
+            response = self._rest.get(f"/{endpoint}", params=params or None)
+        except ApiStatusError as exc:
+            # OpenF1 returns 404 {"detail":"No results found."} when a query matches
+            # nothing (e.g. a session with no starting_grid). That is an empty result,
+            # not a failure — surfacing it as one aborts an otherwise-good ingestion.
+            if exc.status_code == 404:
+                self._log.info("openf1 /%s: no results (404) — treating as empty", endpoint)
+                return []
+            raise
         payload = response.json()
         if not isinstance(payload, list):
             return [payload]
