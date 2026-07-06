@@ -1,0 +1,10 @@
+# Excluded from the Azure Functions deployment package (deploy root = src/).
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.env
+*.env
+local.settings.json

@@ -45,4 +45,24 @@ v2), so switching plans is a deployment-config change only.
 The app uses the **Python v2 programming model** (`function_app.py` with
 decorators). Trigger *logic* lives in `handlers.py` so it is unit-tested without
 the Functions host; `function_app.py` is the binding layer, verified by
-`func start` locally and a deployed HTTP smoke test (see README).
+`func start` locally and a deployed HTTP smoke test
+(`scripts/azure_functions/verify_functions.py`).
+
+### Deploy topology (deploy root = `src/`)
+
+The app is a **src-layout** package: the entrypoints import across the whole
+`src/` tree (`ml`, `shared`, `dataverse`, `openf1`, `azure_functions`). Azure
+Functions packages the directory that contains `host.json`, and adds it to
+`sys.path`. So the deploy artifacts — `function_app.py`, `host.json`,
+`requirements.txt`, `.funcignore` — live at **`src/`**, not inside the
+`azure_functions` package, and the whole tree ships as one app. Consequences:
+
+- `func start` / `func azure functionapp publish` run from `src/`.
+- `requirements.txt` lists only the **runtime** third-party closure of the
+  deployed entrypoints (pydantic, httpx, azure-identity, azure-keyvault-secrets,
+  scikit-learn, pandas) — dev/notebook libs are excluded. The project's own
+  packages ship as content, not via PyPI.
+- Secrets/identity on the host come from **app settings**: `KEY_VAULT_URL` +
+  `AZURE_CLIENT_ID` (the user-assigned Managed Identity) so
+  `DefaultAzureCredential` and the `SecretResolver` resolve without inline
+  secrets. The `MODEL_PATH` setting points `/predict` at its bundled artefact.

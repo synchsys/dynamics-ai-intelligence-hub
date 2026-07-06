@@ -1,9 +1,15 @@
 """Azure Functions app — Python v2 programming model (#10).
 
 The single serverless app that ingestion (#20), the GenAI assistant, and the
-agent workflow will all extend. Bindings only — the logic lives in
-``handlers.py`` so it can be unit-tested without the Functions host. Run locally
-with ``func start`` and deploy per ``README`` / ADR-0004.
+agent workflow will all extend. Bindings only — the logic lives in the
+``azure_functions`` package (``handlers``/``ingestion``/``inference``) so it can
+be unit-tested without the Functions host.
+
+**Deploy root is ``src/``** (ADR-0004): this module, ``host.json``, and
+``requirements.txt`` live here so the whole ``src/`` package tree ships as one
+app and the cross-package imports below resolve on the host. Run locally with
+``func start`` from ``src/`` and deploy with ``func azure functionapp publish``
+from ``src/`` (see README).
 """
 
 import json
