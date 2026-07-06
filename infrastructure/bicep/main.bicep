@@ -41,6 +41,9 @@ param searchServiceName string
 @description('Non-secret app settings for the Function App (endpoints, deployment names, etc.).')
 param functionAppSettings array = []
 
+@description('Optional Action Group id for observability alert notifications (empty = evaluate without notifying).')
+param alertActionGroupId string = ''
+
 // Built-in role definition ids (confirmed from the live dev grants).
 var roles = {
   openAiUser: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd' // Cognitive Services OpenAI User
@@ -127,6 +130,16 @@ resource keyVaultGrant 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roles.keyVaultSecretsUser)
     principalId: identity.properties.principalId
     principalType: 'ServicePrincipal'
+  }
+}
+
+// Consolidated dashboard + baseline alerts over all telemetry (#29).
+module observability 'modules/observability.bicep' = {
+  name: 'observability'
+  params: {
+    appInsightsId: appInsights.outputs.id
+    location: location
+    actionGroupId: alertActionGroupId
   }
 }
 
