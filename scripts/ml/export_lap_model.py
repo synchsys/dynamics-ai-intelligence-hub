@@ -1,7 +1,8 @@
 """Train + serialise the lap-time model for serving (#57).
 
 Fits the lap-time regressor on a live FastF1 session and writes a versioned model
-artefact (git-ignored) that the inference Function loads via MODEL_PATH.
+artefact into the Functions package (git-ignored), so it ships with the deploy
+and the inference Function finds it as the bundled default (or via MODEL_PATH).
 
 Run: python scripts/ml/export_lap_model.py
 """
@@ -11,7 +12,12 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "src"))
 
-ARTEFACT = "artifacts/models/lap-time-regression.joblib"
+# Bundled next to azure_functions.inference so `func publish` from src/ ships it
+# and inference.load_served_model() finds it with no MODEL_PATH needed.
+ARTEFACT = str(
+    pathlib.Path(__file__).resolve().parents[2]
+    / "src/azure_functions/artifacts/lap-time-regression.joblib"
+)
 
 
 def main() -> int:
