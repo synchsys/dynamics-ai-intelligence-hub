@@ -2,9 +2,10 @@
 
 Reads via :class:`~openf1.client.OpenF1Client`, validates via
 ``openf1.models.parse_many`` (bad rows are logged and skipped, never fatal),
-maps to Dataverse columns via :mod:`openf1.mapping`, and **upserts each row by
-alternate key** so re-ingestion produces no duplicates (per-row upsert; batch
-upsert is a possible future optimisation).
+maps to Dataverse columns via :mod:`openf1.mapping`, and **upserts by alternate
+key in bounded ``$batch`` changesets** so re-ingestion produces no duplicates and
+voluminous endpoints (laps/position) ingest in a few round-trips rather than one
+per row (which timed out a full-session run — see ``BATCH_SIZE``).
 
 A Race Event is **settleable** only once the Tier-A minimum
 (`drivers` + `session_result`) has landed for its session — :func:`is_settleable`.
@@ -12,7 +13,7 @@ Marking the Race Event record itself is deferred to the Paddock schema (#225) /
 settlement engine (#229).
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -23,11 +24,24 @@ from shared.logging import get_logger
 
 _logger = get_logger("openf1.persistence")
 
+# Rows per $batch changeset. Dataverse caps a changeset at 1000 operations; 100
+# keeps each batch comfortably under that with a bounded request size, while
+# collapsing the per-row round-trips (and per-row token fetches) that made a
+# full-session ingest of the voluminous laps/position endpoints time out.
+BATCH_SIZE = 100
 
-class SupportsUpsert(Protocol):
+
+class SupportsBatchUpsert(Protocol):
     """The slice of the Dataverse client this module needs (see `DataverseClient`)."""
 
-    def upsert(self, entity_set: str, alternate_key: str, data: Mapping[str, Any]) -> None: ...
+    def batch_upsert(self, operations: Sequence[tuple[str, str, Mapping[str, Any]]]) -> None: ...
+
+
+def _chunked(
+    items: Sequence[tuple[str, str, Mapping[str, Any]]], size: int
+) -> list[Sequence[tuple[str, str, Mapping[str, Any]]]]:
+    """Split ``items`` into consecutive chunks of at most ``size``."""
+    return [items[i : i + size] for i in range(0, len(items), size)]
 
 
 def _fmt_key_value(value: Any) -> str:
@@ -85,28 +99,37 @@ class IngestSummary:
 class OpenF1Persister:
     """Ingest a session's OpenF1 data into Dataverse via idempotent upserts."""
 
-    def __init__(self, openf1: OpenF1Client, dataverse: SupportsUpsert) -> None:
+    def __init__(
+        self, openf1: OpenF1Client, dataverse: SupportsBatchUpsert, *, batch_size: int = BATCH_SIZE
+    ) -> None:
         self._openf1 = openf1
         self._dv = dataverse
+        self._batch_size = batch_size
         self._log = _logger
 
     def persist_endpoint(self, entity_map: EntityMap, session_key: int) -> EndpointResult:
         rows = getattr(self._openf1, entity_map.client_method)(session_key=session_key)
         parsed = parse_many(entity_map.model, rows)
         result = EndpointResult(endpoint=entity_map.endpoint, invalid=len(parsed.errors))
-        for model in parsed.valid:
-            row = model.model_dump()
-            self._dv.upsert(
+        operations = [
+            (
                 entity_map.entity_set,
-                build_alternate_key(entity_map, row),
-                map_row(entity_map, row),
+                build_alternate_key(entity_map, model.model_dump()),
+                map_row(entity_map, model.model_dump()),
             )
-            result.upserted += 1
+            for model in parsed.valid
+        ]
+        # Upsert in bounded $batch changesets — one round-trip per ~batch_size rows
+        # instead of one per row, so large endpoints ingest within the timeout.
+        for chunk in _chunked(operations, self._batch_size):
+            self._dv.batch_upsert(chunk)
+            result.upserted += len(chunk)
         self._log.info(
-            "openf1 persist %s: upserted=%d invalid=%d",
+            "openf1 persist %s: upserted=%d invalid=%d (%d batch(es))",
             entity_map.endpoint,
             result.upserted,
             result.invalid,
+            len(_chunked(operations, self._batch_size)),
         )
         return result
 

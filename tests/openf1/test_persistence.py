@@ -1,6 +1,6 @@
 """Tests for OpenF1 → Dataverse persistence (mocked OpenF1 + fake Dataverse)."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 import httpx
@@ -26,13 +26,16 @@ CANNED: dict[str, list[dict[str, Any]]] = {
 
 
 class FakeDataverse:
-    """Records upsert calls; satisfies SupportsUpsert structurally."""
+    """Records batch_upsert calls; satisfies SupportsBatchUpsert structurally."""
 
     def __init__(self) -> None:
-        self.calls: list[tuple[str, str, Mapping[str, Any]]] = []
+        self.calls: list[tuple[str, str, Mapping[str, Any]]] = []  # flattened operations
+        self.batches: list[Sequence[tuple[str, str, Mapping[str, Any]]]] = []  # per-batch
 
-    def upsert(self, entity_set: str, alternate_key: str, data: Mapping[str, Any]) -> None:
-        self.calls.append((entity_set, alternate_key, data))
+    def batch_upsert(self, operations: Sequence[tuple[str, str, Mapping[str, Any]]]) -> None:
+        ops = list(operations)
+        self.batches.append(ops)
+        self.calls.extend(ops)
 
 
 def make_persister(
@@ -82,6 +85,23 @@ def test_persist_endpoint_upserts_each_row() -> None:
     assert result.invalid == 0
     assert all(entity == "racy_drivers" for entity, _key, _data in dv.calls)
     assert dv.calls[0][1] == "racy_sessionkey=9158,racy_drivernumber=1"
+    assert len(dv.batches) == 1  # 2 rows fit in one batch
+
+
+def test_persist_endpoint_chunks_into_batches() -> None:
+    # 250 driver rows with batch_size=100 -> 3 batches (100, 100, 50).
+    rows = [{"session_key": 9158, "driver_number": n, "full_name": f"D{n}"} for n in range(1, 251)]
+    persister, dv = make_persister({"/v1/drivers": rows})
+    persister._batch_size = 100
+    result = persister.persist_endpoint(MAPPINGS["drivers"], 9158)
+    assert result.upserted == 250
+    assert [len(b) for b in dv.batches] == [100, 100, 50]
+
+
+def test_persist_endpoint_empty_makes_no_batch_call() -> None:
+    persister, dv = make_persister({"/v1/drivers": []})
+    result = persister.persist_endpoint(MAPPINGS["drivers"], 9158)
+    assert result.upserted == 0 and dv.batches == []
 
 
 def test_ingest_session_covers_all_endpoints() -> None:
