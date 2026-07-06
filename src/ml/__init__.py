@@ -7,6 +7,7 @@ from ml.classification import (
     train_strategy_classifier,
 )
 from ml.clustering import ClusterResult, choose_k, cluster_stints, plot_clusters
+from ml.evaluation import compare_classification, compare_regression, cross_val_scores
 from ml.features import (
     AUDIT_FEATURES,
     LAP_NUMERIC_FEATURES,
@@ -48,4 +49,8 @@ __all__ = [
     "evaluate_classification",
     "ClassificationMetrics",
     "StrategyClassificationResult",
+    # evaluation & comparison (#54)
+    "cross_val_scores",
+    "compare_regression",
+    "compare_classification",
 ]
