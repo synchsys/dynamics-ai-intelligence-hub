@@ -60,6 +60,9 @@ strict = true
 warn_unused_configs = true
 mypy_path = "src"
 plugins = ["pydantic.mypy"]
+# Per-package pytest conftest.py files share the module name "conftest"; exclude
+# them from mypy to avoid a duplicate-module clash (they hold only test setup).
+exclude = ['(^|/)conftest\.py$']
 
 # Third-party libraries without type stubs.
 [[tool.mypy.overrides]]

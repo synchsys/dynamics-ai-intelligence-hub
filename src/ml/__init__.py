@@ -1,5 +1,6 @@
 """Machine-learning pillar (Epic 7): feature sets and portfolio models."""
 
+from ml.clustering import ClusterResult, choose_k, cluster_stints, plot_clusters
 from ml.features import (
     AUDIT_FEATURES,
     LAP_NUMERIC_FEATURES,
@@ -26,4 +27,9 @@ __all__ = [
     "evaluate",
     "RegressionMetrics",
     "LapRegressionResult",
+    # clustering (#53)
+    "cluster_stints",
+    "choose_k",
+    "plot_clusters",
+    "ClusterResult",
 ]
