@@ -1,5 +1,11 @@
 """Machine-learning pillar (Epic 7): feature sets and portfolio models."""
 
+from ml.classification import (
+    ClassificationMetrics,
+    StrategyClassificationResult,
+    evaluate_classification,
+    train_strategy_classifier,
+)
 from ml.clustering import ClusterResult, choose_k, cluster_stints, plot_clusters
 from ml.features import (
     AUDIT_FEATURES,
@@ -37,4 +43,9 @@ __all__ = [
     "ExperimentTracker",
     "RunRecord",
     "DEFAULT_SEED",
+    # classification (#52)
+    "train_strategy_classifier",
+    "evaluate_classification",
+    "ClassificationMetrics",
+    "StrategyClassificationResult",
 ]
