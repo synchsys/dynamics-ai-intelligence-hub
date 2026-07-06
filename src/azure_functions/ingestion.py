@@ -16,6 +16,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
 
+from azure_functions.observability import (
+    LoggingMetricSink,
+    MetricSink,
+    ObservabilityRecord,
+    observed_ingestion,
+)
 from dataverse import DataverseClient, DataverseConfig
 from openf1 import OpenF1Client, OpenF1Persister
 from shared.exceptions import ConfigError
@@ -68,7 +74,13 @@ def ingest_from_env(
     *,
     env: Mapping[str, str] | None = None,
     persister_factory: Callable[[], SupportsIngest] = build_persister,
-) -> dict[str, Any]:
-    """Read config from app settings, build the pipeline, and run it (timer entrypoint)."""
+    metrics: MetricSink | None = None,
+) -> ObservabilityRecord:
+    """Read config from app settings, build the pipeline, and run it observed (timer entrypoint)."""
     config = IngestionConfig.from_env(env)
-    return run_ingestion(persister_factory(), config.session_key, now)
+    persister = persister_factory()
+    return observed_ingestion(
+        config.session_key,
+        lambda session_key: run_ingestion(persister, session_key, now),
+        metrics=metrics or LoggingMetricSink(),
+    )
