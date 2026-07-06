@@ -129,9 +129,17 @@ def test_default_base_url() -> None:
 
 
 def test_error_propagates_as_api_status_error() -> None:
-    client = make_client(lambda r: httpx.Response(404, text="no"), max_attempts=1)
+    client = make_client(lambda r: httpx.Response(400, text="bad request"), max_attempts=1)
     with pytest.raises(ApiStatusError):
         client.get_sessions(session_key=1)
+
+
+def test_404_no_results_returns_empty() -> None:
+    # OpenF1 answers 404 "No results found" for an empty query — not a failure.
+    client = make_client(
+        lambda r: httpx.Response(404, json={"detail": "No results found."}), max_attempts=1
+    )
+    assert client.get_starting_grid(session_key=1) == []
 
 
 def test_transient_error_retried_via_rest_client() -> None:
