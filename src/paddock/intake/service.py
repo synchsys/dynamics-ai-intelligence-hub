@@ -10,6 +10,7 @@ grounds against the constrained registry; it never invents a settlement type,
 and it never picks final parameters that skip schema validation.
 """
 
+import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -89,7 +90,9 @@ class WagerIntakeService:
         self._log = logger or NullLogger()
         self._code_factory = code_factory or (lambda: uuid.uuid4().hex)
 
-    def intake(self, text: str, *, session_key: int, drivers: list[Driver]) -> IntakeResult:
+    def intake(
+        self, text: str, *, session_key: int, drivers: list[Driver], user_id: str | None = None
+    ) -> IntakeResult:
         request_code = self._code_factory()
         messages = [
             {"role": "system", "content": _system_prompt(drivers)},
@@ -100,7 +103,12 @@ class WagerIntakeService:
             purpose="wager-intake",
             model=self._client.model,
             prompt=text,
+            user_id=user_id,
         )
+        start = time.perf_counter()
+
+        def elapsed_ms() -> float:
+            return (time.perf_counter() - start) * 1000
 
         try:
             intent = structured_output(self._client, messages, WagerIntent)
@@ -112,6 +120,7 @@ class WagerIntakeService:
                 settlement_type=None,
                 ok=False,
                 error=str(error),
+                latency_ms=elapsed_ms(),
             )
             _logger.warning("intake could not parse a structured intent: %s", error)
             return _reject("Sorry — I couldn't understand that prediction.")
@@ -124,6 +133,7 @@ class WagerIntakeService:
                 settlement_type=None,
                 ok=True,
                 error=None,
+                latency_ms=elapsed_ms(),
             )
             return _reject(intent.reason or "That prediction isn't one I can settle.")
 
@@ -137,6 +147,7 @@ class WagerIntakeService:
                 settlement_type=intent.settlement_type,
                 ok=False,
                 error=error.guidance,
+                latency_ms=elapsed_ms(),
             )
             return _reject(error.guidance)
 
@@ -147,6 +158,7 @@ class WagerIntakeService:
             settlement_type=settlement_type,
             ok=True,
             error=None,
+            latency_ms=elapsed_ms(),
         )
         odds = self._pricer.price(settlement_type, parameters)
         slip = DraftSlip(

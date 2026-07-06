@@ -23,7 +23,8 @@ class _Completions:
         self.calls.append(kwargs)
         text = self._answers[min(len(self.calls) - 1, len(self._answers) - 1)]
         return SimpleNamespace(
-            choices=[SimpleNamespace(message=SimpleNamespace(content=text, tool_calls=None))]
+            choices=[SimpleNamespace(message=SimpleNamespace(content=text, tool_calls=None))],
+            usage=SimpleNamespace(total_tokens=42),
         )
 
 
@@ -46,9 +47,23 @@ class RecordingLogger:
         self.requests: list[dict[str, Any]] = []
         self.responses: list[dict[str, Any]] = []
 
-    def log_request(self, request_code: str, *, purpose: str, model: str, prompt: str) -> None:
+    def log_request(
+        self,
+        request_code: str,
+        *,
+        purpose: str,
+        model: str,
+        prompt: str,
+        user_id: str | None = None,
+    ) -> None:
         self.requests.append(
-            {"code": request_code, "purpose": purpose, "model": model, "prompt": prompt}
+            {
+                "code": request_code,
+                "purpose": purpose,
+                "model": model,
+                "prompt": prompt,
+                "user_id": user_id,
+            }
         )
 
     def log_response(
@@ -60,9 +75,18 @@ class RecordingLogger:
         settlement_type: str | None = None,
         ok: bool = True,
         error: str | None = None,
+        tokens: int | None = None,
+        latency_ms: float | None = None,
     ) -> None:
         self.responses.append(
-            {"code": request_code, "raw": raw_output, "decision": decision, "ok": ok}
+            {
+                "code": request_code,
+                "raw": raw_output,
+                "decision": decision,
+                "ok": ok,
+                "tokens": tokens,
+                "latency_ms": latency_ms,
+            }
         )
 
 
@@ -126,6 +150,25 @@ def test_logging_captures_request_and_response() -> None:
         "purpose": "crm-assistant",
         "model": "gpt-5-mini",
         "prompt": "What accounts exist?",
+        "user_id": None,
     }
     assert logger.responses[0]["decision"] == "answer"
     assert logger.responses[0]["raw"] == "Answered."
+    # Observability: token usage from the SDK response and a measured latency.
+    assert logger.responses[0]["tokens"] == 42
+    assert logger.responses[0]["latency_ms"] is not None and logger.responses[0]["latency_ms"] >= 0
+
+
+def test_logging_records_acting_user() -> None:
+    logger = RecordingLogger()
+    sdk = FakeSDK(["Answered."])
+    client = AIClient(CONFIG, sdk=sdk, max_attempts=1, sleep=lambda _s: None)
+    assistant = CrmAssistant(
+        client=client,
+        retriever=FixedRetriever("Accounts:\n- name=Acme"),
+        logger=logger,
+        code_factory=lambda: "REQ-1",
+        user_id="user@example.com",
+    )
+    assistant.ask("What accounts exist?")
+    assert logger.requests[0]["user_id"] == "user@example.com"

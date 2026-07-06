@@ -37,6 +37,13 @@ def _is_transient(exc: BaseException) -> bool:
     return isinstance(exc, _TRANSIENT)
 
 
+def usage_tokens(response: Any) -> int | None:
+    """Total tokens for a completion response, if the SDK reported usage."""
+    usage = getattr(response, "usage", None)
+    total = getattr(usage, "total_tokens", None)
+    return int(total) if total is not None else None
+
+
 def build_sdk(config: AzureOpenAIConfig) -> Any:
     """Construct the Azure OpenAI SDK client (Entra token by default, or API key)."""
     from openai import AzureOpenAI

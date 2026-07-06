@@ -116,7 +116,15 @@ def test_logging_distinguishes_rag_from_crm() -> None:
         def __init__(self) -> None:
             self.responses: list[str] = []
 
-        def log_request(self, request_code: str, *, purpose: str, model: str, prompt: str) -> None:
+        def log_request(
+            self,
+            request_code: str,
+            *,
+            purpose: str,
+            model: str,
+            prompt: str,
+            user_id: str | None = None,
+        ) -> None:
             pass
 
         def log_response(
@@ -128,6 +136,8 @@ def test_logging_distinguishes_rag_from_crm() -> None:
             settlement_type: str | None = None,
             ok: bool = True,
             error: str | None = None,
+            tokens: int | None = None,
+            latency_ms: float | None = None,
         ) -> None:
             self.responses.append(decision)
 

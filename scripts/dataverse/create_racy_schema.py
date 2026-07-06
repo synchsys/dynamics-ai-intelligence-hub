@@ -291,6 +291,7 @@ AI: list[Table] = [
             Column("racy_Purpose", "string", "Purpose"),  # e.g. wager-intake
             Column("racy_Model", "string", "Model"),
             Column("racy_Prompt", "memo", "Prompt"),
+            Column("racy_UserId", "string", "Acting User Id"),  # who asked (#69)
         ],
         alt_key=["racy_RequestCode"],
     ),
@@ -306,6 +307,8 @@ AI: list[Table] = [
             Column("racy_SettlementTypeCode", "string", "Settlement Type Code"),
             Column("racy_Ok", "bool", "Ok"),
             Column("racy_Error", "memo", "Error"),
+            Column("racy_Tokens", "int", "Total Tokens"),  # cost signal (#69)
+            Column("racy_LatencyMs", "int", "Latency ms"),  # perf signal (#69)
         ],
         alt_key=["racy_RequestCode"],
     ),
