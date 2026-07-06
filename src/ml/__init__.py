@@ -7,11 +7,23 @@ from ml.features import (
     lap_features,
     race_context_features,
 )
+from ml.regression import (
+    LapRegressionResult,
+    RegressionMetrics,
+    evaluate,
+    train_lap_regressor,
+)
 
 __all__ = [
+    # features (#51)
     "lap_features",
     "race_context_features",
     "audit_features",
     "LAP_NUMERIC_FEATURES",
     "AUDIT_FEATURES",
+    # regression (#49)
+    "train_lap_regressor",
+    "evaluate",
+    "RegressionMetrics",
+    "LapRegressionResult",
 ]
