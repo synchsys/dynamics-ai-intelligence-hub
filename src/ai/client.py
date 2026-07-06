@@ -81,6 +81,10 @@ class AIClient:
         self._config = config
         self._log = _logger
         self._sdk = sdk if sdk is not None else build_sdk(config)
+        # Optional observability hook: called with total_tokens (or None) after
+        # every completion, so a caller (e.g. the agent workflow, #78) can meter
+        # token usage per step without threading usage through every layer.
+        self.on_usage: Callable[[int | None], None] | None = None
         self._retry = retry(
             max_attempts=max_attempts,
             base_delay=base_delay,
@@ -122,7 +126,10 @@ class AIClient:
             )
 
         with self._translate():
-            return self._retry(_call)()
+            response = self._retry(_call)()
+        if self.on_usage is not None:
+            self.on_usage(usage_tokens(response))
+        return response
 
     def chat(
         self,
