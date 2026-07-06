@@ -443,3 +443,6 @@ htmlcov/
 
 # FastF1 telemetry cache (Epic 5)
 datasets/fastf1-cache/
+
+# Experiment run logs (#56)
+datasets/experiments/
