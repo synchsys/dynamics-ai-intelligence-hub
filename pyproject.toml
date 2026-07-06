@@ -72,7 +72,7 @@ exclude = ['(^|/)conftest\.py$', '(^|/)function_app\.py$']
 
 # Third-party libraries without type stubs.
 [[tool.mypy.overrides]]
-module = ["fastf1.*", "pandas.*", "matplotlib.*", "sklearn.*", "azure.functions.*"]
+module = ["fastf1.*", "pandas.*", "matplotlib.*", "sklearn.*", "joblib.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

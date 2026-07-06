@@ -21,6 +21,14 @@ from ml.regression import (
     evaluate,
     train_lap_regressor,
 )
+from ml.serving import (
+    ModelMetadata,
+    ServedModel,
+    export_model,
+    fit_lap_model,
+    load_model,
+    predict,
+)
 from ml.tracking import DEFAULT_SEED, ExperimentTracker, RunRecord
 
 __all__ = [
@@ -53,4 +61,11 @@ __all__ = [
     "cross_val_scores",
     "compare_regression",
     "compare_classification",
+    # serving (#57)
+    "fit_lap_model",
+    "export_model",
+    "load_model",
+    "predict",
+    "ServedModel",
+    "ModelMetadata",
 ]
