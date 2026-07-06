@@ -7,10 +7,15 @@
 #   - predict (#57)             -> ml.serving                 -> scikit-learn, pandas, joblib
 #   - config/secrets            -> shared.config, credentials  -> pydantic(-settings), azure-keyvault
 #
+# NOTE: importing ml.serving runs ml/__init__.py, which eagerly imports the whole
+# ML pillar — ml.clustering pulls in *matplotlib*, and ml.features imports
+# fastf1_analytics -> *fastf1*. So the deployed app genuinely needs both, even
+# though only /predict uses the ML path. (Omitting them made the host fail to
+# import function_app.py at index time -> zero functions registered -> 404.)
+#
 # The project's own packages (ai, ml, rag, agents, shared, dataverse, openf1,
 # paddock, azure_functions) ship as deployment content — src/ is the app root,
-# so they import directly. Dev/notebook-only libs (ruff, pytest, matplotlib,
-# fastf1) are intentionally excluded to keep the package lean.
+# so they import directly.
 azure-functions>=1.20
 pydantic>=2.7
 pydantic-settings>=2.3
@@ -19,3 +24,5 @@ azure-identity>=1.17
 azure-keyvault-secrets>=4.8
 scikit-learn>=1.4
 pandas>=2.2
+matplotlib>=3.8
+fastf1>=3.5
