@@ -32,6 +32,7 @@ dev = [
 analytics = [
   "fastf1>=3.5",
   "pandas>=2.2",
+  "matplotlib>=3.8",
 ]
 
 [tool.setuptools.packages.find]
@@ -61,7 +62,7 @@ plugins = ["pydantic.mypy"]
 
 # Third-party libraries without type stubs.
 [[tool.mypy.overrides]]
-module = ["fastf1.*"]
+module = ["fastf1.*", "pandas.*", "matplotlib.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
