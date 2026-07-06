@@ -96,7 +96,7 @@ branch = true
 # function_app.py is the Azure Functions runtime binding (decorators + request/
 # response marshalling) — only exercisable under the Functions host. Its logic
 # lives in handlers.py, which IS fully tested.
-omit = ["src/azure_functions/function_app.py"]
+omit = ["src/function_app.py"]
 
 [tool.coverage.report]
 fail_under = 80

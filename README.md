@@ -254,9 +254,12 @@ credentials; unit tests use a mocked transport and need no environment.
 The Azure Functions app (Python v2 model) that ingestion, the assistant, and the
 agent workflow extend — one **timer** trigger (hourly, `0 0 * * * *`) that runs
 the **OpenF1 → Dataverse ingestion** pipeline (#20), and one **HTTP** trigger
-(`/api/health`). Trigger *logic* lives in `handlers.py`/`ingestion.py`
-(unit-tested, bindings-free); `function_app.py` is the binding layer. Hosting
-model: **Flex Consumption** ([ADR-0004](docs/decisions/ADR-0004-functions-hosting-model.md)).
+(`/api/health`). Trigger *logic* lives in the `azure_functions` package
+(`handlers`/`ingestion`/`inference`, unit-tested and bindings-free);
+`src/function_app.py` is the binding layer. The **deploy root is `src/`** —
+`function_app.py`, `host.json`, and `requirements.txt` sit there so the whole
+`src/` package tree ships as one app and cross-package imports resolve on the
+host. Hosting model: **Flex Consumption** ([ADR-0004](docs/decisions/ADR-0004-functions-hosting-model.md)).
 
 Ingestion is idempotent (upsert-by-alternate-key) and reads config/secrets from
 **app settings** — the same `DATAVERSE_URL` / `AZURE_*` as the Dataverse client,
@@ -270,19 +273,26 @@ with `python scripts/ml/export_lap_model.py`; contract in
 [docs/architecture/inference-endpoint.md](docs/architecture/inference-endpoint.md).
 
 ```bash
-# local run (Azure Functions Core Tools + the functions extra)
-pip install -e ".[functions]"
-cd src/azure_functions
+# local run (Azure Functions Core Tools + the functions & analytics extras;
+# /predict pulls in ml.serving -> scikit-learn/pandas)
+pip install -e ".[functions,analytics]"
+cd src                                                 # deploy root
 cp local.settings.json.example local.settings.json     # git-ignored
 func start                                              # timer + HTTP triggers
 curl localhost:7071/api/health                          # -> {"status":"ok",...}
 
-# deploy (once, to a dev Function App)
+# deploy (from src/, the app root — the host remote-builds requirements.txt)
 func azure functionapp publish <app-name>
 curl https://<app-name>.azurewebsites.net/api/health    # -> 200
+# or: FUNCTION_APP_URL=https://<app-name>.azurewebsites.net \
+#     python scripts/azure_functions/verify_functions.py
 ```
 
 `local.settings.json` is git-ignored; the template lists the required settings.
+Config/secrets come from **app settings** in the deployed app: the same
+`DATAVERSE_URL` / `AZURE_OPENAI_*` / `AZURE_SEARCH_*` as local dev, plus
+`KEY_VAULT_URL` + `AZURE_CLIENT_ID` (the user-assigned Managed Identity) so
+`DefaultAzureCredential` and the Key Vault `SecretResolver` resolve on the host.
 
 ## Azure OpenAI, tools and the CRM assistant (`src/ai`)
 
