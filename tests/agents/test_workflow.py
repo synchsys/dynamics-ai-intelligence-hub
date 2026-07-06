@@ -1,6 +1,7 @@
 """End-to-end tests for the multi-agent workflow (#26)."""
 
 import json
+from collections.abc import Mapping
 from types import SimpleNamespace
 from typing import Any
 
@@ -111,8 +112,8 @@ class RecordingSink:
         self,
         name: str,
         *,
-        properties: dict[str, str],
-        measurements: dict[str, float],
+        properties: Mapping[str, str],
+        measurements: Mapping[str, float],
     ) -> None:
         self.events.append(
             {"name": name, "properties": dict(properties), "measurements": dict(measurements)}
