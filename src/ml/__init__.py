@@ -14,6 +14,7 @@ from ml.regression import (
     evaluate,
     train_lap_regressor,
 )
+from ml.tracking import DEFAULT_SEED, ExperimentTracker, RunRecord
 
 __all__ = [
     # features (#51)
@@ -32,4 +33,8 @@ __all__ = [
     "choose_k",
     "plot_clusters",
     "ClusterResult",
+    # experiment tracking (#56)
+    "ExperimentTracker",
+    "RunRecord",
+    "DEFAULT_SEED",
 ]
