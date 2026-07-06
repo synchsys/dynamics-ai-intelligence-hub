@@ -7,8 +7,10 @@ the Function invocation fails and the Azure Monitor alert on failed runs fires
 (see ``docs/architecture/observability.md``).
 
 The metric sink is a Protocol so it's testable; ``LoggingMetricSink`` (default)
-emits metrics as structured logs that Application Insights ingests as custom
-metrics.
+emits each metric as a structured log line, which the Functions host forwards to
+Application Insights as an **``AppTraces``** row (queried by KQL — see
+``docs/architecture/observability-standard.md``). A future upgrade could emit
+native ``customMetrics`` via OpenTelemetry; the Protocol makes that a sink swap.
 """
 
 import time
@@ -29,7 +31,7 @@ class MetricSink(Protocol):
 
 
 class LoggingMetricSink:
-    """Emits metrics as structured logs (Application Insights → customMetrics)."""
+    """Emits each metric as a structured log line (Application Insights → AppTraces)."""
 
     def emit(self, name: str, value: float, *, properties: Mapping[str, str] | None = None) -> None:
         _logger.info("metric %s=%s %s", name, value, dict(properties or {}))
