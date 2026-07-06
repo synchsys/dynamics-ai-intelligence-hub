@@ -264,6 +264,11 @@ plus **`INGEST_SESSION_KEY`** (the session to ingest each run). No secrets in
 source; set these in the Function App configuration (locally in
 `local.settings.json`).
 
+There's also an HTTP **inference** endpoint — `POST /api/predict` serves the
+lap-time model (#57), loaded once from the **`MODEL_PATH`** artefact. Export it
+with `python scripts/ml/export_lap_model.py`; contract in
+[docs/architecture/inference-endpoint.md](docs/architecture/inference-endpoint.md).
+
 ```bash
 # local run (Azure Functions Core Tools + the functions extra)
 pip install -e ".[functions]"
