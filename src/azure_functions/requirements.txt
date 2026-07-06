@@ -1,0 +1,3 @@
+# Azure Functions app runtime deps (installed by the Functions host on deploy).
+# Later epics add the project's own dependencies as functions wire real work in.
+azure-functions>=1.20

@@ -249,6 +249,29 @@ Managed Identity later — see [ADR-0003](docs/decisions/ADR-0003-dataverse-auth
 The integration test runs only with `RUN_DATAVERSE_INTEGRATION=1` and valid
 credentials; unit tests use a mocked transport and need no environment.
 
+## Serverless platform (`src/azure_functions`)
+
+The Azure Functions app (Python v2 model) that ingestion (#20), the assistant,
+and the agent workflow extend — one timer trigger (hourly, placeholder for OpenF1
+ingestion) and one HTTP trigger (`/api/health`). Trigger *logic* lives in
+`handlers.py` (unit-tested, bindings-free); `function_app.py` is the binding
+layer. Hosting model: **Flex Consumption** ([ADR-0004](docs/decisions/ADR-0004-functions-hosting-model.md)).
+
+```bash
+# local run (Azure Functions Core Tools + the functions extra)
+pip install -e ".[functions]"
+cd src/azure_functions
+cp local.settings.json.example local.settings.json     # git-ignored
+func start                                              # timer + HTTP triggers
+curl localhost:7071/api/health                          # -> {"status":"ok",...}
+
+# deploy (once, to a dev Function App)
+func azure functionapp publish <app-name>
+curl https://<app-name>.azurewebsites.net/api/health    # -> 200
+```
+
+`local.settings.json` is git-ignored; the template lists the required settings.
+
 ## Azure OpenAI, tools and the CRM assistant (`src/ai`)
 
 The governed LLM layer. One `AIClient` (chat + embeddings on Azure OpenAI, Entra

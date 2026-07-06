@@ -35,6 +35,11 @@ analytics = [
   "matplotlib>=3.8",
   "scikit-learn>=1.4",
 ]
+# Azure Functions host deps (for `func start` locally). The trigger logic in
+# handlers.py is tested without these; function_app.py is the runtime binding.
+functions = [
+  "azure-functions>=1.20",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -60,13 +65,14 @@ strict = true
 warn_unused_configs = true
 mypy_path = "src"
 plugins = ["pydantic.mypy"]
-# Per-package pytest conftest.py files share the module name "conftest"; exclude
-# them from mypy to avoid a duplicate-module clash (they hold only test setup).
-exclude = ['(^|/)conftest\.py$']
+# Excluded from mypy: per-package conftest.py files share the module name
+# "conftest" (duplicate-module clash), and function_app.py is Azure Functions
+# runtime binding (untyped decorators) — its logic is typed + tested in handlers.py.
+exclude = ['(^|/)conftest\.py$', '(^|/)function_app\.py$']
 
 # Third-party libraries without type stubs.
 [[tool.mypy.overrides]]
-module = ["fastf1.*", "pandas.*", "matplotlib.*", "sklearn.*"]
+module = ["fastf1.*", "pandas.*", "matplotlib.*", "sklearn.*", "azure.functions.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -86,6 +92,10 @@ filterwarnings = [
 [tool.coverage.run]
 source = ["src"]
 branch = true
+# function_app.py is the Azure Functions runtime binding (decorators + request/
+# response marshalling) — only exercisable under the Functions host. Its logic
+# lives in handlers.py, which IS fully tested.
+omit = ["src/azure_functions/function_app.py"]
 
 [tool.coverage.report]
 fail_under = 80

@@ -446,3 +446,6 @@ datasets/fastf1-cache/
 
 # Experiment run logs (#56)
 datasets/experiments/
+
+# Azure Functions local settings (secrets)
+local.settings.json
