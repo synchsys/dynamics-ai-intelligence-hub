@@ -63,7 +63,7 @@ plugins = ["pydantic.mypy"]
 
 # Third-party libraries without type stubs.
 [[tool.mypy.overrides]]
-module = ["fastf1.*", "pandas.*", "matplotlib.*"]
+module = ["fastf1.*", "pandas.*", "matplotlib.*", "sklearn.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
