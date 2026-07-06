@@ -87,3 +87,13 @@ deliberately isolated to Tier B.
       (entry list + `session_result` must be present to settle)
 - [ ] Record the virtual-credits framing in the Responsible AI note (11.B)
 - [ ] Log the FastF1 / Ergast–jolpica dependency risk before Tier-B types 13/15
+
+## Update — odds v2 (#232)
+
+The `OddsPricer` interface now has two implementations: the v1 `HeuristicPricer`
+(`source="heuristic"`) and the v2 calibrated `ModelPricer` (`source="model"`,
+`paddock.odds_model`). Both share the probability→odds conversion
+(`price_probability`); the model prices winner/podium from calibrated form
+probabilities and delegates other types to the heuristic. See
+`docs/architecture/odds-model.md`. Settlement is unchanged — pricing feeds the
+frozen odds at lock; grading stays deterministic.

@@ -160,6 +160,25 @@ def _threshold_prob(positions: Sequence[int | None], op: Operator, value: int) -
     return exact if op is Operator.EQ else _clamp(1.0 - exact)
 
 
+def price_probability(probability: float, *, source: str, house_margin: float = 0.10) -> Odds:
+    """Convert a fair probability into offered :class:`Odds` (shared by both pricers).
+
+    Applies the house margin (shortening the price), snaps to a real bookmaker
+    fraction, and tags the ``source`` (``"heuristic"`` or ``"model"``).
+    """
+    prob = _clamp(probability)
+    offered = (1.0 / prob) / (1.0 + house_margin)
+    num, den = decimal_to_fraction(offered)
+    decimal_odds = round(num / den + 1.0, 2)
+    return Odds(
+        probability=prob,
+        decimal_odds=decimal_odds,
+        fractional=f"{num}/{den}",
+        line=fractional_line(num, den),
+        source=source,
+    )
+
+
 class OddsPricer(Protocol):
     """The pricing contract shared by the heuristic (v1) and ML model (v2)."""
 
@@ -177,17 +196,7 @@ class HeuristicPricer:
         return self._form.get(driver_number, [])
 
     def _odds(self, probability: float) -> Odds:
-        prob = _clamp(probability)
-        offered = (1.0 / prob) / (1.0 + self._margin)  # house margin shortens the price
-        num, den = decimal_to_fraction(offered)  # quote a real bookmaker fraction
-        decimal_odds = round(num / den + 1.0, 2)  # consistent with the quoted fraction
-        return Odds(
-            probability=prob,
-            decimal_odds=decimal_odds,
-            fractional=f"{num}/{den}",
-            line=fractional_line(num, den),
-            source="heuristic",
-        )
+        return price_probability(probability, source="heuristic", house_margin=self._margin)
 
     def _probability(self, settlement_type: str, params: Mapping[str, Any]) -> float:
         dn = int(params.get("driver_number", 0))
