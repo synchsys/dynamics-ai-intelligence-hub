@@ -67,7 +67,8 @@ def test_ingest_from_env_wires_config_and_factory() -> None:
         NOW, env={"INGEST_SESSION_KEY": "9165"}, persister_factory=lambda: persister
     )
     assert persister.sessions == [9165]
-    assert result["session_key"] == 9165 and result["upserted"] == 42
+    # ingest_from_env now returns an observability record.
+    assert result.session_key == 9165 and result.upserted == 42 and result.outcome == "success"
 
 
 def test_build_persister_constructs_real_clients(monkeypatch: pytest.MonkeyPatch) -> None:
