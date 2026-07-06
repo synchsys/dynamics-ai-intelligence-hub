@@ -11,13 +11,14 @@ module does not import the ``rag`` package (which depends on ``ai``) — the RAG
 assistant is injected and duck-types the contract.
 """
 
+import time
 import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from ai.assistant.retriever import CrmRetriever
-from ai.client import AIClient
+from ai.client import AIClient, usage_tokens
 from ai.prompt_log import NullLogger, PromptLogger
 from ai.prompts import get as get_prompt
 from shared.logging import get_logger
@@ -61,24 +62,41 @@ class CrmAssistant:
     code_factory: Callable[[], str] = field(default_factory=lambda: (lambda: uuid.uuid4().hex))
     knowledge: KnowledgeSource | None = None
     roles: Sequence[str] = ()
+    user_id: str | None = None
     _history: list[dict[str, str]] = field(default_factory=list, init=False)
 
     def ask(self, question: str) -> AssistantAnswer:
         request_code = self.code_factory()
         self.logger.log_request(
-            request_code, purpose="crm-assistant", model=self.client.model, prompt=question
+            request_code,
+            purpose="crm-assistant",
+            model=self.client.model,
+            prompt=question,
+            user_id=self.user_id,
         )
+        start = time.perf_counter()
 
         knowledge_answer = self._knowledge_answer(question)
         if knowledge_answer is not None:
             self.logger.log_response(
-                request_code, raw_output=knowledge_answer.text, decision="answer-rag", ok=True
+                request_code,
+                raw_output=knowledge_answer.text,
+                decision="answer-rag",
+                ok=True,
+                latency_ms=(time.perf_counter() - start) * 1000,
             )
             self._remember(question, knowledge_answer.text)
             return knowledge_answer
 
-        answer = self._crm_answer(question)
-        self.logger.log_response(request_code, raw_output=answer.text, decision="answer", ok=True)
+        answer, tokens = self._crm_answer(question)
+        self.logger.log_response(
+            request_code,
+            raw_output=answer.text,
+            decision="answer",
+            ok=True,
+            tokens=tokens,
+            latency_ms=(time.perf_counter() - start) * 1000,
+        )
         self._remember(question, answer.text)
         return answer
 
@@ -99,13 +117,14 @@ class CrmAssistant:
             grounded_in="knowledge",
         )
 
-    def _crm_answer(self, question: str) -> AssistantAnswer:
-        """Answer from Dataverse data via the CRM retriever (the fallback path)."""
+    def _crm_answer(self, question: str) -> tuple[AssistantAnswer, int | None]:
+        """Answer from Dataverse data via the CRM retriever; returns (answer, tokens)."""
         context = self.retriever.context(question)
         system, user = get_prompt("crm_qa").render(context=context, question=question)
-        answer = self.client.chat([system, *self._history, user])
+        response = self.client.complete([system, *self._history, user])
+        answer = str(response.choices[0].message.content or "")
         _logger.info("assistant answered from CRM data (%d chars of context)", len(context))
-        return AssistantAnswer(text=answer, context=context)
+        return AssistantAnswer(text=answer, context=context), usage_tokens(response)
 
     def _remember(self, question: str, answer: str) -> None:
         self._history.extend(

@@ -7,6 +7,7 @@ for governance (Epic 8). It composes the existing Epic 9 components — no new
 retrieval tech — into a single ``ask(question, roles)`` call.
 """
 
+import time
 import uuid
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
@@ -43,6 +44,7 @@ class RagAssistant:
         self.logger.log_request(
             request_code, purpose="rag-assistant", model=self.client.model, prompt=question
         )
+        start = time.perf_counter()
 
         chunks = self.retriever.retrieve_for(question, roles, top_k=top_k, policy=self.policy)
         answer = generate_answer(self.client, question, chunks)
@@ -53,6 +55,7 @@ class RagAssistant:
             decision="answer",
             ok=answer.is_grounded,
             error=None if chunks else "no permitted sources retrieved",
+            latency_ms=(time.perf_counter() - start) * 1000,
         )
         _logger.info(
             "rag answer for roles=%s: %d source(s), %d citation(s)",

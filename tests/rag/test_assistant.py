@@ -81,7 +81,15 @@ class RecordingLogger:
         self.requests: list[dict[str, Any]] = []
         self.responses: list[dict[str, Any]] = []
 
-    def log_request(self, request_code: str, *, purpose: str, model: str, prompt: str) -> None:
+    def log_request(
+        self,
+        request_code: str,
+        *,
+        purpose: str,
+        model: str,
+        prompt: str,
+        user_id: str | None = None,
+    ) -> None:
         self.requests.append({"code": request_code, "purpose": purpose, "prompt": prompt})
 
     def log_response(
@@ -93,6 +101,8 @@ class RecordingLogger:
         settlement_type: str | None = None,
         ok: bool = True,
         error: str | None = None,
+        tokens: int | None = None,
+        latency_ms: float | None = None,
     ) -> None:
         self.responses.append({"ok": ok, "error": error, "decision": decision})
 

@@ -56,9 +56,23 @@ class RecordingLogger:
         self.requests: list[dict[str, Any]] = []
         self.responses: list[dict[str, Any]] = []
 
-    def log_request(self, request_code: str, *, purpose: str, model: str, prompt: str) -> None:
+    def log_request(
+        self,
+        request_code: str,
+        *,
+        purpose: str,
+        model: str,
+        prompt: str,
+        user_id: str | None = None,
+    ) -> None:
         self.requests.append(
-            {"code": request_code, "purpose": purpose, "model": model, "prompt": prompt}
+            {
+                "code": request_code,
+                "purpose": purpose,
+                "model": model,
+                "prompt": prompt,
+                "user_id": user_id,
+            }
         )
 
     def log_response(
@@ -70,6 +84,8 @@ class RecordingLogger:
         settlement_type: str | None = None,
         ok: bool = True,
         error: str | None = None,
+        tokens: int | None = None,
+        latency_ms: float | None = None,
     ) -> None:
         self.responses.append(
             {
@@ -78,6 +94,7 @@ class RecordingLogger:
                 "type": settlement_type,
                 "ok": ok,
                 "error": error,
+                "latency_ms": latency_ms,
             }
         )
 
@@ -151,10 +168,24 @@ def test_logging_captures_request_and_response() -> None:
         "purpose": "wager-intake",
         "model": "gpt-5-mini",
         "prompt": "some prediction",
+        "user_id": None,
     }
     assert logger.responses[0]["decision"] == "propose"
     assert logger.responses[0]["ok"] is True
     assert logger.responses[0]["type"] == "driver_wins"
+    # Every response path records a measured latency for observability.
+    assert logger.responses[0]["latency_ms"] is not None and logger.responses[0]["latency_ms"] >= 0
+
+
+def test_logging_records_acting_user() -> None:
+    logger = RecordingLogger()
+    service, _, _ = _service(
+        {"decision": "propose", "settlement_type": "driver_wins", "driver": "Sainz"}, logger
+    )
+    service.intake(
+        "some prediction", session_key=9165, drivers=DRIVERS, user_id="player@example.com"
+    )
+    assert logger.requests[0]["user_id"] == "player@example.com"
 
 
 def test_logging_records_error_on_malformed() -> None:
