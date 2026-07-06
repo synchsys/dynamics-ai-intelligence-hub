@@ -149,6 +149,51 @@ SCHEMA: list[Table] = [
         ],
         alt_key=["racy_SessionKey", "racy_DriverNumber", "racy_LapNumber"],
     ),
+    # Position over time — an ADR-0008 settlement source; columns/alt-key match
+    # openf1.mapping MAPPINGS["position"].
+    Table(
+        "racy_Position",
+        "Racy Position",
+        "Racy Positions",
+        "racy_positions",
+        [
+            Column("racy_SessionKey", "int", "Session Key"),
+            Column("racy_DriverNumber", "int", "Driver Number"),
+            Column("racy_Position", "int", "Position"),
+            Column("racy_RecordedOn", "datetime", "Recorded On"),
+        ],
+        alt_key=["racy_SessionKey", "racy_DriverNumber", "racy_RecordedOn"],
+    ),
+    # Tyre stints — feeds the Epic 7 strategy classifier. MAPPINGS["stints"].
+    Table(
+        "racy_Stint",
+        "Racy Stint",
+        "Racy Stints",
+        "racy_stints",
+        [
+            Column("racy_SessionKey", "int", "Session Key"),
+            Column("racy_DriverNumber", "int", "Driver Number"),
+            Column("racy_StintNumber", "int", "Stint Number"),
+            Column("racy_Compound", "string", "Compound"),
+            Column("racy_TyreAge", "int", "Tyre Age At Start"),
+        ],
+        alt_key=["racy_SessionKey", "racy_DriverNumber", "racy_StintNumber"],
+    ),
+    # Session weather. MAPPINGS["weather"].
+    Table(
+        "racy_Weather",
+        "Racy Weather",
+        "Racy Weather",
+        "racy_weather",
+        [
+            Column("racy_SessionKey", "int", "Session Key"),
+            Column("racy_AirTemp", "decimal", "Air Temperature"),
+            Column("racy_TrackTemp", "decimal", "Track Temperature"),
+            Column("racy_Rainfall", "int", "Rainfall"),
+            Column("racy_RecordedOn", "datetime", "Recorded On"),
+        ],
+        alt_key=["racy_SessionKey", "racy_RecordedOn"],
+    ),
 ]
 
 
