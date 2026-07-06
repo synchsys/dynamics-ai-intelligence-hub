@@ -33,6 +33,7 @@ analytics = [
   "fastf1>=3.5",
   "pandas>=2.2",
   "matplotlib>=3.8",
+  "scikit-learn>=1.4",
 ]
 
 [tool.setuptools.packages.find]
@@ -73,6 +74,11 @@ testpaths = ["tests"]
 #   pytest --cov=src --cov-report=term-missing --cov-fail-under=80
 # CI (story #9) runs that command; plain `pytest` stays editor-friendly.
 addopts = ""
+# Targeted: silence a known pandas 2.3 / numpy 2.x timedelta deprecation raised
+# deep in pandas when parsing Timedelta strings (upstream, not our code).
+filterwarnings = [
+  "ignore:The 'generic' unit for NumPy timedelta is deprecated:DeprecationWarning",
+]
 
 [tool.coverage.run]
 source = ["src"]
