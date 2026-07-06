@@ -1,5 +1,7 @@
 """Tests for the HTTP inference logic (#57)."""
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
@@ -10,7 +12,7 @@ from azure_functions.inference import (
     predict_lap_time,
 )
 from ml import fit_lap_model
-from ml.serving import ServedModel
+from ml.serving import ServedModel, export_model
 from shared.exceptions import ConfigError
 
 
@@ -80,4 +82,31 @@ def test_load_served_model_caches_by_path(
 def test_load_served_model_missing_path_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("MODEL_PATH", raising=False)
     with pytest.raises(ConfigError, match="MODEL_PATH"):
-        load_served_model()
+        # No env var and no bundled artefact present.
+        load_served_model(bundled=Path("/nonexistent/lap-time-regression.joblib"))
+
+
+def test_load_served_model_falls_back_to_bundled_artefact(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    inference_mod._MODEL_CACHE.clear()
+    monkeypatch.delenv("MODEL_PATH", raising=False)
+    artefact = tmp_path / "lap-time-regression.joblib"
+    export_model(_model(), artefact)
+    served = load_served_model(bundled=artefact)  # no path, no env -> bundled
+    assert served.metadata.model_type == "lap-time-regression"
+
+
+def test_explicit_path_overrides_bundled(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    inference_mod._MODEL_CACHE.clear()
+    monkeypatch.setenv("MODEL_PATH", "/env/should-not-win.joblib")
+    calls: list[str] = []
+    model = _model()
+
+    def fake_load(path: str) -> ServedModel:
+        calls.append(str(path))
+        return model
+
+    monkeypatch.setattr(inference_mod, "load_model", fake_load)
+    load_served_model("/explicit/model.joblib", bundled=tmp_path / "nope.joblib")
+    assert calls == ["/explicit/model.joblib"]  # explicit path wins over env + bundled

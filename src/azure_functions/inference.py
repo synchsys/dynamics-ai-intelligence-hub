@@ -8,6 +8,7 @@ The model artefact path comes from the ``MODEL_PATH`` app setting.
 """
 
 import os
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
@@ -21,6 +22,12 @@ _logger = get_logger("azure_functions.inference")
 # Load-once cache: path -> ServedModel.
 _MODEL_CACHE: dict[str, ServedModel] = {}
 
+# Model artefact bundled next to this module, produced by
+# scripts/ml/export_lap_model.py and shipped inside the deploy package
+# (git-ignored). Used when MODEL_PATH is unset, so /predict works out of the box
+# regardless of the host's working directory. MODEL_PATH still overrides it.
+_BUNDLED_MODEL = Path(__file__).with_name("artifacts") / "lap-time-regression.joblib"
+
 
 class LapPredictionRequest(BaseModel):
     """Input contract for a lap-time prediction."""
@@ -32,11 +39,19 @@ class LapPredictionRequest(BaseModel):
     Compound: str
 
 
-def load_served_model(path: str | None = None) -> ServedModel:
-    """Load the model from ``path`` (or ``MODEL_PATH``), caching per path."""
+def load_served_model(path: str | None = None, *, bundled: Path = _BUNDLED_MODEL) -> ServedModel:
+    """Load the model, caching per path.
+
+    Resolution order: explicit ``path`` → ``MODEL_PATH`` app setting → the
+    ``bundled`` artefact shipped with the deploy. Raises if none is available.
+    """
     resolved = path or os.environ.get("MODEL_PATH")
+    if not resolved and bundled.exists():
+        resolved = str(bundled)
     if not resolved:
-        raise ConfigError("Missing app setting MODEL_PATH")
+        raise ConfigError(
+            "No model artefact: set MODEL_PATH or bundle one at azure_functions/artifacts/"
+        )
     if resolved not in _MODEL_CACHE:
         _MODEL_CACHE[resolved] = load_model(resolved)
         _logger.info("loaded model artefact %s", resolved)
