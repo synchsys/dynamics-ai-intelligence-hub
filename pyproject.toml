@@ -15,6 +15,7 @@ dependencies = [
   "pydantic-settings>=2.3",
   "httpx>=0.27",
   "azure-identity>=1.17",
+  "azure-keyvault-secrets>=4.8",
   "azure-search-documents>=11.5",
   "openai>=1.40",
 ]
@@ -72,7 +73,7 @@ exclude = ['(^|/)conftest\.py$', '(^|/)function_app\.py$']
 
 # Third-party libraries without type stubs.
 [[tool.mypy.overrides]]
-module = ["fastf1.*", "pandas.*", "matplotlib.*", "sklearn.*", "joblib.*"]
+module = ["fastf1.*", "pandas.*", "matplotlib.*", "sklearn.*", "joblib.*", "azure.keyvault.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

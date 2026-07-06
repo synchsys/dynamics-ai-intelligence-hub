@@ -49,3 +49,22 @@ Token scope is `${DATAVERSE_URL}/.default`.
   this ADR may be superseded/updated then.
 - The application user must be granted a least-privilege security role in the
   Dataverse environment.
+
+## Update — production identity (Epic 11 / #28)
+
+The Managed Identity migration path is now implemented as a shared capability:
+
+- **`shared.credentials.azure_credential()`** returns `DefaultAzureCredential` —
+  a **managed identity** when deployed to Azure, and dev credentials (the
+  service-principal env vars, or `az login`) locally. Services obtain their Entra
+  credential from this rather than constructing a `ClientSecretCredential`, so
+  **no client secret appears in production code or config**.
+- **`shared.credentials.SecretResolver`** reads any residual secret (e.g. the
+  Azure AI Search admin key) from **Key Vault** when `KEY_VAULT_URL` is set, and
+  from the environment (`.env`) in local dev. Key Vault + the identity grant are
+  provisioned by `infrastructure/bicep/keyvault.bicep`.
+
+**Net:** production authenticates to Dataverse (and Azure OpenAI) via Managed
+Identity with no stored client secret; the service-principal client secret is a
+**local-development** convenience only, resolved through the same abstraction.
+See `docs/security/secrets-and-identity.md`.

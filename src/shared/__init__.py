@@ -6,6 +6,7 @@ in ``shared.resilience`` (story #23).
 """
 
 from shared.config import Settings, get_settings
+from shared.credentials import SecretResolver, azure_credential
 from shared.exceptions import (
     ConfigError,
     ExternalServiceError,
@@ -46,5 +47,7 @@ __all__ = [
     "run_with_timeout",
     "with_timeout",
     "compute_backoff",
+    "azure_credential",
+    "SecretResolver",
     "__version__",
 ]
