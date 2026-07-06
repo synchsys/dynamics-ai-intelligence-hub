@@ -251,11 +251,18 @@ credentials; unit tests use a mocked transport and need no environment.
 
 ## Serverless platform (`src/azure_functions`)
 
-The Azure Functions app (Python v2 model) that ingestion (#20), the assistant,
-and the agent workflow extend — one timer trigger (hourly, placeholder for OpenF1
-ingestion) and one HTTP trigger (`/api/health`). Trigger *logic* lives in
-`handlers.py` (unit-tested, bindings-free); `function_app.py` is the binding
-layer. Hosting model: **Flex Consumption** ([ADR-0004](docs/decisions/ADR-0004-functions-hosting-model.md)).
+The Azure Functions app (Python v2 model) that ingestion, the assistant, and the
+agent workflow extend — one **timer** trigger (hourly, `0 0 * * * *`) that runs
+the **OpenF1 → Dataverse ingestion** pipeline (#20), and one **HTTP** trigger
+(`/api/health`). Trigger *logic* lives in `handlers.py`/`ingestion.py`
+(unit-tested, bindings-free); `function_app.py` is the binding layer. Hosting
+model: **Flex Consumption** ([ADR-0004](docs/decisions/ADR-0004-functions-hosting-model.md)).
+
+Ingestion is idempotent (upsert-by-alternate-key) and reads config/secrets from
+**app settings** — the same `DATAVERSE_URL` / `AZURE_*` as the Dataverse client,
+plus **`INGEST_SESSION_KEY`** (the session to ingest each run). No secrets in
+source; set these in the Function App configuration (locally in
+`local.settings.json`).
 
 ```bash
 # local run (Azure Functions Core Tools + the functions extra)

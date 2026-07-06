@@ -11,7 +11,8 @@ from datetime import UTC, datetime
 
 import azure.functions as func
 
-from azure_functions.handlers import health_payload, run_scheduled_ingestion
+from azure_functions.handlers import health_payload
+from azure_functions.ingestion import ingest_from_env
 
 app = func.FunctionApp()
 
@@ -24,5 +25,5 @@ def health(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.timer_trigger(schedule="0 0 * * * *", arg_name="timer", run_on_startup=False)
 def scheduled_ingestion(timer: func.TimerRequest) -> None:
-    """Hourly timer — placeholder for OpenF1 ingestion (#20)."""
-    run_scheduled_ingestion(datetime.now(UTC))
+    """Hourly timer — runs the OpenF1 → Dataverse pipeline (#20)."""
+    ingest_from_env(datetime.now(UTC))
