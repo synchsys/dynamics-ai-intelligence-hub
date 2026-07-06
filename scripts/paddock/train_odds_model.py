@@ -48,7 +48,9 @@ def main() -> int:
 
     feats = [_row(form_features(f)) for f, _w, _p in samples]
     probs = model.win_model.predict_proba(feats)[:, 1]
-    actual, predicted = calibration_curve([w for _f, w, _p in samples], probs, n_bins=5, strategy="quantile")
+    actual, predicted = calibration_curve(
+        [w for _f, w, _p in samples], probs, n_bins=5, strategy="quantile"
+    )
     print("calibration (predicted -> actual win rate):")
     for p, a in zip(predicted, actual, strict=False):
         print(f"  {p:.2f} -> {a:.2f}")
@@ -60,7 +62,9 @@ def main() -> int:
     for dn in (1, 77):
         m = pricer.price("driver_wins", {"driver_number": dn})
         h = heuristic.price("driver_wins", {"driver_number": dn})
-        print(f"driver {dn} win: model {m.line} (p={m.probability:.2f}) | heuristic {h.line} (p={h.probability:.2f})")
+        print(
+            f"driver {dn} win: model {m.line} (p={m.probability:.2f}) | heuristic {h.line} (p={h.probability:.2f})"
+        )
 
     ok = 0.0 <= float(probs.min()) and float(probs.max()) <= 1.0
     print("OK" if ok else "FAILURES PRESENT")
