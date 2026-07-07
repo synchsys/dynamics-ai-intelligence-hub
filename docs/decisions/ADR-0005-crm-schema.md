@@ -63,9 +63,11 @@ AI-logging here; F1 sample data and the Paddock game elsewhere).
 - **Upsert:** standard tables carry a GUID primary key; where the pipeline
   upserts (seeding, integration) it uses a **defined alternate key** on a natural
   business identifier — added to the standard tables (`account.accountnumber`,
-  `contact.emailaddress1`, `knowledgearticle.articlepublicnumber`) and native on
-  the custom ones (`racy_leadcode`, `racy_opportunitycode`, `racy_casecode`,
-  `racy_productnumber`). The AI tables use `racy_requestcode`.
+  `contact.emailaddress1`) and native on the custom ones (`racy_leadcode`,
+  `racy_opportunitycode`, `racy_casecode`, `racy_productnumber`). The AI tables
+  use `racy_requestcode`. (`knowledgearticle` gets **no** alt key —
+  `articlepublicnumber` exceeds Dataverse's 1700-byte alt-key index limit, and KB
+  content is indexed for RAG in Azure AI Search, not upserted here.)
 - **AI ↔ CRM link:** `racy_airequest` carries the acting user and an optional
   reference to the CRM record it acted on; `racy_airesponse` pairs 1:1 to its
   request by `racy_requestcode`. Detail in `crm-schema-notes.md`.

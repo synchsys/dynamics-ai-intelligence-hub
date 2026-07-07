@@ -381,15 +381,12 @@ class StandardCustomization:
 
 
 # Alternate keys on the standard base tables that DO exist in racy-dev.
+# NB: knowledgearticle is intentionally omitted — an alt key on `articlepublicnumber`
+# exceeds Dataverse's 1700-byte alt-key index limit (0x80060895), and KB content is
+# indexed for RAG in Azure AI Search, not upserted into this table by the pipeline.
 CRM_KEYS: list[StandardCustomization] = [
     StandardCustomization("account", "Account", "racy_AccountKey", ["accountnumber"]),
     StandardCustomization("contact", "Contact", "racy_ContactKey", ["emailaddress1"]),
-    StandardCustomization(
-        "knowledgearticle",
-        "Knowledge Article",
-        "racy_KnowledgeArticleKey",
-        ["articlepublicnumber"],
-    ),
 ]
 
 # The four Sales/Service entities modelled as custom racy_ tables (not installed
