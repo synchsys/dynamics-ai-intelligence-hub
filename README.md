@@ -249,6 +249,30 @@ Managed Identity later — see [ADR-0003](docs/decisions/ADR-0003-dataverse-auth
 The integration test runs only with `RUN_DATAVERSE_INTEGRATION=1` and valid
 credentials; unit tests use a mocked transport and need no environment.
 
+### Schema & sample data
+
+The `racy_` schema (CRM alt keys + custom tables, F1, Paddock, AI logging) is
+provisioned by `scripts/dataverse/create_racy_schema.py` (idempotent; dry-run by
+default, `--apply` to write; `--only crm|f1|paddock|ai|all`). The generic CRM
+model is [ADR-0005](docs/decisions/ADR-0005-crm-schema.md) — standard base tables
+where they exist, custom `racy_` tables for the Sales/Service entities this
+environment lacks. ERD: [docs/diagrams/crm-erd.md](docs/diagrams/crm-erd.md).
+
+**Seed synthetic, client-agnostic sample data** (#14) — deterministic
+generators (`src/dataverse/seed`, no real people/companies; `@example.invalid`
+emails) upserted idempotently by alternate key, with a controlled set of updates
+for audit history:
+
+```bash
+set -a && source .env && set +a
+python scripts/dataverse/seed_crm.py                 # dry run — counts only
+python scripts/dataverse/seed_crm.py --apply         # ~230 linked records + 60 updates
+python scripts/dataverse/seed_crm.py --scale 2 --apply   # parameterised volume
+```
+
+Re-running is safe (upsert, never duplicate). Requires the CRM tables/keys from
+`create_racy_schema.py --only crm --apply` first.
+
 ## Serverless platform (`src/azure_functions`)
 
 The Azure Functions app (Python v2 model) that ingestion, the assistant, and the
