@@ -18,7 +18,7 @@ tables without further design.
 |---|---|---|---|
 | Account | `account` | standard | `accountnumber` *(added)* |
 | Contact | `contact` | standard | `emailaddress1` *(added)* |
-| Knowledge Article | `knowledgearticle` | standard | `articlepublicnumber` *(added)* |
+| Knowledge Article | `knowledgearticle` | standard | — *(articlepublicnumber exceeds the 1700-byte alt-key index limit; RAG indexes KB in Azure AI Search)* |
 | Activity | `activitypointer` | standard | — *(system-generated)* |
 | Document | `annotation` | standard | — *(system-generated)* |
 | Audit Event | `audit` | standard | — *(read-only platform log)* |
@@ -107,8 +107,8 @@ Paddock tables.
 ## What this drives
 
 - **#6** — `create_racy_schema.py --only crm` adds the alternate keys to the
-  standard tables (account/contact/knowledgearticle) and creates the four custom
-  `racy_` CRM tables; then a maker-portal/`pac` pass packages everything into an
+  standard tables (account/contact) and creates the four custom `racy_` CRM
+  tables; then a maker-portal/`pac` pass packages everything into an
   unmanaged solution exported to `dataverse/solutions/` (with #233).
 - **#14** — seed sample Accounts/Contacts + `racy_lead`/`racy_opportunity`/
   `racy_case`/`racy_product` via upsert-by-alternate-key.
