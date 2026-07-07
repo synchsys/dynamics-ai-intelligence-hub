@@ -1,12 +1,19 @@
 # Generic CRM — Entity-Relationship Diagram
 
-Client-agnostic CRM domain (#8), modelled on **native Dataverse standard tables**
-with custom `racy_` tables only for AI logging (ADR-0005). `UK` marks a
-**Dataverse alternate key** (used for upsert); `PK` the GUID primary key; `FK` a
-lookup. Cross-cutting entities (Activity, Document, Audit Event, AI Request) use
-a **polymorphic** lookup that can point at several tables — see
+Client-agnostic CRM domain (#8). `UK` marks a **Dataverse alternate key** (used
+for upsert); `PK` the GUID primary key; `FK` a lookup. Cross-cutting entities
+(Activity, Document, Audit Event, AI Request) use a **polymorphic** lookup that
+can point at several tables — see
 [crm-schema-notes.md](../architecture/crm-schema-notes.md); only representative
 edges are drawn here to keep the diagram legible.
+
+> **This is the logical model.** Physically (ADR-0005 Option B), `racy-dev` is a
+> plain Dataverse environment: `account`/`contact`/`activitypointer`/
+> `knowledgearticle`/`annotation`/`audit` are native standard tables, but **Lead,
+> Opportunity, Case, and Product are custom `racy_` tables** (the Dynamics 365
+> Sales/Customer Service apps aren't installed). Those four are flat with
+> reference-code columns; native lookups/N:N shown below are model-driven-app
+> enrichment (#11/#12). The relationships and keys here remain the design target.
 
 ```mermaid
 erDiagram

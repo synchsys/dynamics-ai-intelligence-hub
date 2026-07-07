@@ -360,6 +360,100 @@ AI: list[Table] = [
 ]
 
 
+# --- generic CRM (ADR-0005, story #6) ---------------------------------------
+# racy-dev is a plain Dataverse environment: it has the base tables
+# (account/contact/activitypointer/knowledgearticle/annotation/audit) but NOT the
+# Dynamics 365 Sales/Customer Service tables (lead/opportunity/product/incident).
+# Per ADR-0005 (Option B) we add an alternate key to the standard tables that
+# exist, and model the four missing entities as custom racy_ tables. Following
+# the flat-table pattern (ADR-0009 / Paddock): cross-entity references are carried
+# as *code columns* (racy_accountnumber, racy_contactcode, …); native lookups +
+# N:N are model-driven-app enrichment (#11/#12), not created here.
+
+
+@dataclass
+class StandardCustomization:
+    logical: str  # existing standard table, e.g. "account"
+    display: str
+    key_name: str  # racy_-prefixed alternate-key SchemaName, e.g. racy_AccountKey
+    key_attrs: list[str]  # column logical names in the key
+    add_columns: list[Column] = field(default_factory=list)  # custom cols to add first
+
+
+# Alternate keys on the standard base tables that DO exist in racy-dev.
+CRM_KEYS: list[StandardCustomization] = [
+    StandardCustomization("account", "Account", "racy_AccountKey", ["accountnumber"]),
+    StandardCustomization("contact", "Contact", "racy_ContactKey", ["emailaddress1"]),
+    StandardCustomization(
+        "knowledgearticle",
+        "Knowledge Article",
+        "racy_KnowledgeArticleKey",
+        ["articlepublicnumber"],
+    ),
+]
+
+# The four Sales/Service entities modelled as custom racy_ tables (not installed
+# as standard tables in this environment). Flat, with reference-code columns.
+CRM_TABLES: list[Table] = [
+    Table(
+        "racy_Lead",
+        "Racy Lead",
+        "Racy Leads",
+        "racy_leads",
+        [
+            Column("racy_LeadCode", "string", "Lead Code"),
+            Column("racy_Subject", "string", "Subject"),
+            Column("racy_AccountNumber", "string", "Account Number (ref)"),
+            Column("racy_ContactCode", "string", "Contact Code (ref)"),
+            Column("racy_StatusCode", "string", "Status"),
+        ],
+        alt_key=["racy_LeadCode"],
+    ),
+    Table(
+        "racy_Opportunity",
+        "Racy Opportunity",
+        "Racy Opportunities",
+        "racy_opportunities",
+        [
+            Column("racy_OpportunityCode", "string", "Opportunity Code"),
+            Column("racy_AccountNumber", "string", "Account Number (ref)"),
+            Column("racy_ContactCode", "string", "Contact Code (ref)"),
+            Column("racy_LeadCode", "string", "Originating Lead (ref)"),
+            Column("racy_EstimatedValue", "decimal", "Estimated Value"),
+            Column("racy_StatusCode", "string", "Status"),
+        ],
+        alt_key=["racy_OpportunityCode"],
+    ),
+    Table(
+        "racy_Case",
+        "Racy Case",
+        "Racy Cases",
+        "racy_cases",
+        [
+            Column("racy_CaseCode", "string", "Case Code"),
+            Column("racy_Title", "string", "Title"),
+            Column("racy_AccountNumber", "string", "Account Number (ref)"),
+            Column("racy_ContactCode", "string", "Contact Code (ref)"),
+            Column("racy_PriorityCode", "string", "Priority"),
+            Column("racy_StatusCode", "string", "Status"),
+        ],
+        alt_key=["racy_CaseCode"],
+    ),
+    Table(
+        "racy_Product",
+        "Racy Product",
+        "Racy Products",
+        "racy_products",
+        [
+            Column("racy_ProductNumber", "string", "Product Number"),
+            Column("racy_Description", "memo", "Description"),
+            Column("racy_Price", "decimal", "Price"),
+        ],
+        alt_key=["racy_ProductNumber"],
+    ),
+]
+
+
 # --- helpers ----------------------------------------------------------------
 
 
@@ -547,6 +641,43 @@ def ensure_table(c: Client, t: Table) -> None:
         )
 
 
+def ensure_standard_customization(c: Client, sc: StandardCustomization) -> None:
+    """Add a custom column set + a prefixed alternate key to an existing standard table."""
+    if not c.exists(f"/EntityDefinitions(LogicalName='{sc.logical}')?$select=LogicalName"):
+        print(f"table {sc.logical} not found — skip (standard table missing?)")
+        c.skipped.append(f"table:{sc.logical}:missing")
+        return
+
+    for col in sc.add_columns:
+        col_logical = _logical(col.schema)
+        if c.exists(
+            f"/EntityDefinitions(LogicalName='{sc.logical}')/Attributes(LogicalName='{col_logical}')?$select=LogicalName"
+        ):
+            c.skipped.append(f"column:{sc.logical}.{col_logical}")
+            continue
+        c.post(
+            f"/EntityDefinitions(LogicalName='{sc.logical}')/Attributes",
+            _attr_payload(col),
+            label=f"column {sc.logical}.{col_logical}",
+        )
+
+    key_logical = _logical(sc.key_name)
+    keys = c._get_json(f"/EntityDefinitions(LogicalName='{sc.logical}')/Keys?$select=SchemaName")
+    if any(k.get("SchemaName") == sc.key_name for k in keys.get("value", [])):
+        c.skipped.append(f"altkey:{sc.logical}:{key_logical}")
+    else:
+        c.post(
+            f"/EntityDefinitions(LogicalName='{sc.logical}')/Keys",
+            {
+                "@odata.type": "Microsoft.Dynamics.CRM.EntityKeyMetadata",
+                "SchemaName": sc.key_name,
+                "DisplayName": _label(f"{sc.display} Alt Key"),
+                "KeyAttributes": list(sc.key_attrs),
+            },
+            label=f"alternate key {key_logical} on {sc.logical} ({', '.join(sc.key_attrs)})",
+        )
+
+
 def build_client(apply: bool) -> Client:
     url = os.environ.get("DATAVERSE_URL", "").rstrip("/")
     tenant = os.environ.get("AZURE_TENANT_ID", "")
@@ -579,9 +710,9 @@ def main() -> None:
     parser.add_argument("--apply", action="store_true", help="actually create (default: dry run)")
     parser.add_argument(
         "--only",
-        choices=["f1", "paddock", "ai", "all"],
+        choices=["f1", "paddock", "ai", "crm", "all"],
         default="all",
-        help="which table set to provision (default: all)",
+        help="which set to provision: f1/paddock/ai custom tables, crm alt-keys, or all",
     )
     args = parser.parse_args()
 
@@ -592,6 +723,8 @@ def main() -> None:
         tables += PADDOCK
     if args.only in ("ai", "all"):
         tables += AI
+    if args.only in ("crm", "all"):
+        tables += CRM_TABLES
 
     c = build_client(args.apply)
     mode = "APPLY" if args.apply else "DRY RUN"
@@ -600,6 +733,11 @@ def main() -> None:
     for table in tables:
         print(f"table: {_logical(table.schema)}")
         ensure_table(c, table)
+    if args.only in ("crm", "all"):
+        print("\n--- CRM alternate keys on standard tables (ADR-0005, #6) ---")
+        for sc in CRM_KEYS:
+            print(f"customize: {sc.logical}")
+            ensure_standard_customization(c, sc)
     print(
         f"\n{mode} complete — created/planned: {len(c.created)}, skipped(existing): {len(c.skipped)}"
     )

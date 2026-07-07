@@ -19,28 +19,40 @@ security roles (#13), the CRM assistant/RAG retrieval, the model-driven app
 
 ## Decision
 
-**Model the CRM domain on native Dataverse standard tables.** Add custom
-`racy_` tables *only* for concepts Dataverse has no first-party equivalent for —
-here, **AI Request / AI Response** (prompt/response governance logging, #69).
+**Model the CRM domain on native Dataverse standard tables where they exist**,
+and add custom `racy_` tables for what the target environment doesn't provide.
+
+> **Amendment (Option B, after #6 discovery).** The original decision assumed all
+> 12 standard tables exist. In practice `racy-dev` is a **plain Dataverse
+> environment** — it has the base tables (`account`, `contact`,
+> `activitypointer`, `knowledgearticle`, `annotation`, `audit`) but **not** the
+> Dynamics 365 Sales/Customer Service tables (`lead`, `opportunity`, `product`,
+> `incident`), which only appear once those first-party apps are installed.
+> Rather than install those apps (heavier, licensing-dependent, hundreds of
+> tables for a data-model + AI showcase), we **model the four missing entities as
+> custom `racy_` tables**. See the environment check in `create_racy_schema.py`.
 
 | Domain entity | Dataverse table | Kind |
 |---|---|---|
 | Account | `account` | standard |
 | Contact | `contact` | standard |
-| Lead | `lead` | standard |
-| Opportunity | `opportunity` | standard |
-| Case | `incident` | standard |
 | Activity | `activitypointer` (+ task/phonecall/email…) | standard |
-| Product | `product` | standard |
 | Knowledge Article | `knowledgearticle` | standard |
 | Document | `annotation` (Note+attachment) / SharePoint | standard |
 | Audit Event | `audit` | standard (platform) |
+| Lead | `racy_lead` | **custom** *(Sales app not installed)* |
+| Opportunity | `racy_opportunity` | **custom** *(Sales)* |
+| Case | `racy_case` | **custom** *(Customer Service)* |
+| Product | `racy_product` | **custom** *(Sales)* |
 | AI Request | `racy_airequest` | **custom** |
 | AI Response | `racy_airesponse` | **custom** |
 
-The `racy_` prefix is reserved for what is genuinely custom: the AI-logging
-tables here, and — outside this ADR's CRM scope — the F1 sample-data and Paddock
-Club game tables.
+The custom CRM tables follow the **flat-table** pattern (ADR-0009 / the Paddock
+tables): cross-entity references are carried as *code columns*
+(`racy_accountnumber`, `racy_contactcode`, …), and native lookups / N:N are
+model-driven-app enrichment (#11/#12), not created by the provisioning script.
+The `racy_` prefix stays reserved for the genuinely custom (these CRM entities +
+AI-logging here; F1 sample data and the Paddock game elsewhere).
 
 ## Consequences
 
@@ -49,10 +61,11 @@ Club game tables.
   architecture in the portfolio; the assistant already queries native tables
   (e.g. `accounts`). Less to build and maintain.
 - **Upsert:** standard tables carry a GUID primary key; where the pipeline
-  upserts (seeding, integration) it uses a **defined alternate key** on a
-  natural business identifier (e.g. `account.accountnumber`,
-  `contact.emailaddress1`, `incident.ticketnumber`). The AI tables use
-  `racy_requestcode`.
+  upserts (seeding, integration) it uses a **defined alternate key** on a natural
+  business identifier — added to the standard tables (`account.accountnumber`,
+  `contact.emailaddress1`, `knowledgearticle.articlepublicnumber`) and native on
+  the custom ones (`racy_leadcode`, `racy_opportunitycode`, `racy_casecode`,
+  `racy_productnumber`). The AI tables use `racy_requestcode`.
 - **AI ↔ CRM link:** `racy_airequest` carries the acting user and an optional
   reference to the CRM record it acted on; `racy_airesponse` pairs 1:1 to its
   request by `racy_requestcode`. Detail in `crm-schema-notes.md`.

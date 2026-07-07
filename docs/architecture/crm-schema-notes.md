@@ -8,27 +8,32 @@ tables without further design.
 
 ## Entities & keys
 
-| Entity | Table | Primary name | Alternate key (upsert) |
-|---|---|---|---|
-| Account | `account` | `name` | `accountnumber` |
-| Contact | `contact` | `fullname` | `emailaddress1` |
-| Lead | `lead` | `subject` | `racy_leadcode` *(added)* |
-| Opportunity | `opportunity` | `name` | `racy_opportunitycode` *(added)* |
-| Case | `incident` | `title` | `ticketnumber` *(system)* |
-| Activity | `activitypointer` | `subject` | — *(system-generated)* |
-| Product | `product` | `name` | `productnumber` |
-| Knowledge Article | `knowledgearticle` | `title` | `articlepublicnumber` |
-| Document | `annotation` | `subject` | — *(system-generated)* |
-| Audit Event | `audit` | — | — *(read-only platform log)* |
-| AI Request | `racy_airequest` | `racy_requestcode` | `racy_requestcode` |
-| AI Response | `racy_airesponse` | `racy_requestcode` | `racy_requestcode` |
+> **Environment note (ADR-0005 Option B):** `racy-dev` is a plain Dataverse
+> environment without the Dynamics 365 Sales/Customer Service apps, so `lead`,
+> `opportunity`, `product`, and `incident` (Case) **don't exist as standard
+> tables**. They're modelled as custom `racy_` tables (flat, reference-by-code).
+> The rest are native standard tables.
 
-**Alternate keys** exist because standard tables key on a GUID `PK`, but the
-ingestion/seeding pipeline upserts by a *business-natural* identifier (see the
-upsert-by-alt-key pattern already used for the `racy_` F1 tables). Two —
-`racy_leadcode`, `racy_opportunitycode` — must be **added** to the standard
-tables (they ship with no business-natural unique key). Activity, Document, and
-Audit Event are created by the system / not upserted, so they need none.
+| Entity | Table | Kind | Alternate key (upsert) |
+|---|---|---|---|
+| Account | `account` | standard | `accountnumber` *(added)* |
+| Contact | `contact` | standard | `emailaddress1` *(added)* |
+| Knowledge Article | `knowledgearticle` | standard | `articlepublicnumber` *(added)* |
+| Activity | `activitypointer` | standard | — *(system-generated)* |
+| Document | `annotation` | standard | — *(system-generated)* |
+| Audit Event | `audit` | standard | — *(read-only platform log)* |
+| Lead | `racy_lead` | custom | `racy_leadcode` |
+| Opportunity | `racy_opportunity` | custom | `racy_opportunitycode` |
+| Case | `racy_case` | custom | `racy_casecode` |
+| Product | `racy_product` | custom | `racy_productnumber` |
+| AI Request | `racy_airequest` | custom | `racy_requestcode` |
+| AI Response | `racy_airesponse` | custom | `racy_requestcode` |
+
+**Alternate keys** let the pipeline upsert by a *business-natural* identifier
+(the pattern the `racy_` F1 tables already use). On the standard tables the key
+is **added** (via `create_racy_schema.py --only crm`) on an existing column; on
+the custom tables it's native. Activity, Document, and Audit Event are
+system-created / not upserted, so they need none.
 
 ## Relationships & cascade behaviour
 
@@ -51,8 +56,17 @@ Audit Event are created by the system / not upserted, so they need none.
 
 Cascade choices favour **Remove Link** for reference relationships (deleting an
 account shouldn't silently delete its contacts) and **Cascade** for owned child
-records (activities/documents/line items belong to their parent). These are
-Dataverse relationship-behaviour defaults to confirm at build time (#6).
+records (activities/documents/line items belong to their parent).
+
+**Implementation (ADR-0005 Option B):** the table above is the *logical* design.
+Because Lead/Opportunity/Case/Product are custom **flat** `racy_` tables, their
+relationships are physically carried as **reference-code columns**
+(`racy_opportunity.racy_accountnumber` → `account.accountnumber`,
+`racy_case.racy_contactcode` → a contact code, `racy_opportunity.racy_leadcode`
+→ `racy_lead`, etc.) rather than native lookups. Opportunity↔Product and
+Case↔Knowledge Article (N:N) are likewise deferred. Native lookups, cascade
+behaviours, and N:N are **model-driven-app enrichment (#11/#12)** — the ERD
+relationships remain the target for that work.
 
 ## Polymorphic ("regarding") lookups
 
@@ -92,9 +106,11 @@ Paddock tables.
 
 ## What this drives
 
-- **#6** — create the two `racy_leadcode`/`racy_opportunitycode` alternate keys
-  and confirm relationship behaviours; the `racy_ai*` tables already exist.
-- **#14** — seed sample Accounts/Contacts/Leads/Opportunities/Cases via
-  upsert-by-alternate-key.
-- **#13** — security roles build on standard-table privileges (and the
-  least-privilege agent-write role, #294).
+- **#6** — `create_racy_schema.py --only crm` adds the alternate keys to the
+  standard tables (account/contact/knowledgearticle) and creates the four custom
+  `racy_` CRM tables; then a maker-portal/`pac` pass packages everything into an
+  unmanaged solution exported to `dataverse/solutions/` (with #233).
+- **#14** — seed sample Accounts/Contacts + `racy_lead`/`racy_opportunity`/
+  `racy_case`/`racy_product` via upsert-by-alternate-key.
+- **#13** — security roles build on standard-table privileges + the custom-table
+  privileges (and the least-privilege agent-write role, #294).
