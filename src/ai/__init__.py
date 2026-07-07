@@ -11,6 +11,7 @@ from ai.crm_tools import ApprovalBroker, ApprovalError, CrmActionTools, build_cr
 from ai.exceptions import AIAuthError, AIError, AIRateLimitError
 from ai.prompt_log import DataversePromptLogger, NullLogger, PromptLogger
 from ai.structured import structured_output
+from ai.summaries import CrmSummariser, SummaryError, SummaryResult
 
 __all__ = [
     "AIClient",
@@ -27,4 +28,7 @@ __all__ = [
     "CrmActionTools",
     "ApprovalBroker",
     "ApprovalError",
+    "CrmSummariser",
+    "SummaryResult",
+    "SummaryError",
 ]

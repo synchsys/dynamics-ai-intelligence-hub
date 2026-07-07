@@ -81,8 +81,20 @@ ACCOUNT_BRIEFING = PromptTemplate(
     user="Account data:\n{account}\n\nRecent activities:\n{activities}",
 )
 
+CRM_SUMMARY = PromptTemplate(
+    name="crm_summary",
+    system=(
+        "You summarise a CRM {record_type} record for a busy user. Produce a "
+        "concise, factual overview in at most {max_words} words, using ONLY the data "
+        "provided below — never invent names, figures, or events. Lead with the most "
+        "important facts."
+    ),
+    user="{record_type} data:\n{record}",
+)
+
 LIBRARY: dict[str, PromptTemplate] = {
-    template.name: template for template in (CRM_QA, SUMMARISE_ACTIVITY, ACCOUNT_BRIEFING)
+    template.name: template
+    for template in (CRM_QA, SUMMARISE_ACTIVITY, ACCOUNT_BRIEFING, CRM_SUMMARY)
 }
 
 
