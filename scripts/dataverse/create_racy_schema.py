@@ -387,6 +387,15 @@ class StandardCustomization:
 CRM_KEYS: list[StandardCustomization] = [
     StandardCustomization("account", "Account", "racy_AccountKey", ["accountnumber"]),
     StandardCustomization("contact", "Contact", "racy_ContactKey", ["emailaddress1"]),
+    # Activities: give the standard `task` a settable code so the seeder (#14) can
+    # upsert tasks idempotently (regarding link stays the native polymorphic lookup).
+    StandardCustomization(
+        "task",
+        "Task",
+        "racy_TaskKey",
+        ["racy_taskcode"],
+        add_columns=[Column("racy_TaskCode", "string", "Task Code")],
+    ),
 ]
 
 # The four Sales/Service entities modelled as custom racy_ tables (not installed
