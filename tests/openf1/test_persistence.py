@@ -112,8 +112,10 @@ def test_ingest_session_covers_all_endpoints() -> None:
     assert summary.endpoints["drivers"].upserted == 2
     assert summary.endpoints["session_result"].upserted == 2
     assert summary.endpoints["laps"].upserted == 1
-    assert summary.endpoints["weather"].upserted == 0
+    assert summary.endpoints["stints"].upserted == 0  # no canned stint rows
     assert summary.total_upserted == 5
+    # position/weather are not ingested (Dataverse forbids ':'/'+' in alt-key URLs)
+    assert "position" not in summary.endpoints and "weather" not in summary.endpoints
 
 
 def test_ingest_is_idempotent_shape() -> None:
