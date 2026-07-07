@@ -17,12 +17,10 @@ from openf1.models import (
     Lap,
     OpenF1Record,
     Pit,
-    Position,
     Session,
     SessionResult,
     StartingGrid,
     Stint,
-    Weather,
 )
 
 PREFIX = "racy_"
@@ -132,19 +130,11 @@ MAPPINGS: dict[str, EntityMap] = {
             "pit_duration": _f("pitduration"),
         },
     ),
-    "position": EntityMap(
-        "position",
-        "get_position",
-        Position,
-        f"{PREFIX}positions",
-        ("session_key", "driver_number", "date"),
-        {
-            "session_key": _f("sessionkey"),
-            "driver_number": _f("drivernumber"),
-            "position": _f("position"),
-            "date": _f("recordedon"),
-        },
-    ),
+    # NOTE: `position` and `weather` are intentionally NOT ingested. Their natural
+    # key is a high-precision timestamp, and Dataverse forbids `:` and `+` in
+    # alternate-key URL values (both appear in an ISO datetime), so upsert-by-key
+    # is unusable for them. They need a URL-safe surrogate key — tracked in #295.
+    # `racy_positions` / `racy_weather` tables exist but stay empty until then.
     "stints": EntityMap(
         "stints",
         "get_stints",
@@ -157,20 +147,6 @@ MAPPINGS: dict[str, EntityMap] = {
             "stint_number": _f("stintnumber"),
             "compound": _f("compound"),
             "tyre_age_at_start": _f("tyreage"),
-        },
-    ),
-    "weather": EntityMap(
-        "weather",
-        "get_weather",
-        Weather,
-        f"{PREFIX}weather",
-        ("session_key", "date"),
-        {
-            "session_key": _f("sessionkey"),
-            "air_temperature": _f("airtemp"),
-            "track_temperature": _f("tracktemp"),
-            "rainfall": _f("rainfall"),
-            "date": _f("recordedon"),
         },
     ),
 }
