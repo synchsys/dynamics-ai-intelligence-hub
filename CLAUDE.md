@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-This repository is **under active implementation** — substantial code exists across `src/`, `tests/`, `docs/`, and `scripts/`. The GenAI (Epic 8), RAG (Epic 9), and Agents (Epic 10) pillars are built and live-verified, alongside the Dataverse client, OpenF1 ingestion, and the Paddock Club predictions game. Still verify what's actually on disk before assuming — the "Repository structure" section below marks what is implemented vs. still a placeholder.
+This repository is **under active implementation** — substantial code exists across `src/`, `tests/`, `docs/`, and `scripts/`. The GenAI (Epic 8), RAG (Epic 9), and Agents (Epic 10) pillars are built and live-verified, alongside the Dataverse client, OpenF1 ingestion, FastF1 analytics, the core ML models (Epic 7), the deployable Azure Functions app, and the Paddock Club predictions game. Still verify what's actually on disk before assuming — the "Repository structure" section below marks what is implemented vs. still a placeholder.
 
 **The backlog lives in GitHub — that is canonical:** GitHub Issues + Project #2 (`synchsys/dynamics-ai-intelligence-hub`), organised Epic → Feature → Story → Task via sub-issues, with Milestones and `type:`/`priority:`/`effort:` labels. When asked to "build X" or "start on Y", find the issue there and follow its User Story / tasks / Definition of Done / suggested branch / labels. Managed via the `github-backlog-management` skills.
 
@@ -39,8 +39,9 @@ Packages under `src/` (✅ = implemented + tested, live-verified; 🚧 = placeho
 - ✅ `src/rag` — ingestion/chunking, embeddings, Azure AI Search index, hybrid + permission-aware retrieval, cited generation, the assembled `RagAssistant`, and an evaluation harness.
 - ✅ `src/agents` — the `Agent` primitive, the four core agents (planner → researcher → reviewer → reporter), and the `MultiAgentWorkflow`. **Layered above both `ai` and `rag`** (imports either freely; neither imports `agents`) — reuses the `ai` tool layer (ADR-0006) and wraps the RAG assistant as a researcher tool.
 - ✅ `src/paddock` — the Paddock Club predictions game (Epic 13): odds pricing, the settlement registry + deterministic grading, wager lock + settlement engine, and the LLM free-text `intake`. (Not in the original backlog structure; added in the 2026-07 rework.)
-- 🚧 `src/fastf1_analytics` — telemetry analysis helpers (placeholder).
-- 🚧 `src/azure_functions` — serverless timer/HTTP triggers to host ingestion, the assistant, and the agent workflow (placeholder).
+- ✅ `src/ml` — the ML pillar (Epic 7): feature builders, lap-time regression, tyre-strategy classification, stint clustering, a model-agnostic evaluation layer + seeded experiment tracking, and model serving/packaging (the lap-time model is served by the Functions `/api/predict` endpoint). Note: the audit-anomaly chain (feature extraction → anomaly model, #46–48 / #55) is still open.
+- ✅ `src/fastf1_analytics` — FastF1 telemetry analytics (Epic 5): cached session loading, lap prep/cleaning helpers, and pace/fastest-lap plots. Requires the `analytics` extra.
+- ✅ `src/azure_functions` — the deployable Azure Functions app (Python v2, Flex Consumption): an hourly OpenF1→Dataverse ingestion timer plus HTTP health and inference (`/api/predict`) endpoints, with telemetry/observability. Trigger logic is bindings-free and unit-tested; `src/function_app.py` is the binding layer (deploy root = `src/`).
 
 Supporting trees: `tests/` (mirrors `src/`), `scripts/` (per-capability live `verify_*.py` + Dataverse schema tooling), `docs/` (`architecture/`, `decisions/` for ADRs, `security/`, `learning/`), `infrastructure/` (`bicep/`, `terraform/`, `environments/`), plus `notebooks/`, `datasets/`, `portfolio/`.
 
@@ -77,4 +78,4 @@ These come from the backlog and issue drafts — follow them when scaffolding:
 
 The backlog is costed at 337 story points and treats six months as the aggressive case. Months 5 (GenAI/RAG/Agents) and 2 (Dataverse) are the pressure points. When work must slip, the backlog's guidance is to defer lower-priority items (clustering model, notebook templates, parts of Epic 11 hardening) rather than the end-to-end **assembly stories** (RAG assistant, multi-agent workflow) or the governance spine — those are the portfolio's differentiators.
 
-**Status:** both headline differentiators are **delivered and live-verified** — the end-to-end RAG assistant (Epic 9) and the multi-agent workflow (Epic 10), alongside the GenAI/assistant spine (Epic 8) and the Paddock Club game (Epic 13). Remaining major work is platform/experience (Azure Functions #10/#20, model-driven app UI #11/#12), Epic 11 hardening, Epic 7 ML, and the Epic 12 capstone assembly.
+**Status:** both headline differentiators are **delivered and live-verified** — the end-to-end RAG assistant (Epic 9) and the multi-agent workflow (Epic 10), alongside the GenAI/assistant spine (Epic 8) and the Paddock Club game (Epic 13). The Azure Functions app (#10/#20), the FastF1 analytics, and the core ML models (Epic 7) have since landed too. Remaining major work is the model-driven app UI (#11/#12), the audit-anomaly ML chain (#46–48 / #55), Epic 11 hardening, and the Epic 12 capstone assembly.
