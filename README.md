@@ -70,8 +70,10 @@ src/            # source packages (src-layout, importable after editable install
   rag/          # retrieval-augmented generation (ingest → retrieve → cited answers)
   agents/       # multi-agent orchestration (planner → researcher → reviewer → reporter)
   paddock/      # Paddock Club predictions game (odds, settlement, LLM intake)
-  fastf1_analytics/   # placeholder — not yet implemented
-  azure_functions/    # placeholder — not yet implemented
+  ml/           # ML pillar: lap-time regression, strategy classification, stint clustering, eval, serving
+  fastf1_analytics/   # FastF1 telemetry analytics (cache/load, prep, plots)
+  azure_functions/    # Functions app logic: ingestion timer, HTTP handlers, inference, observability
+  function_app.py     # Azure Functions binding layer (deploy root = src/)
 tests/          # mirrors src/
 scripts/        # live verify_*.py smoke tests + Dataverse schema tooling
 docs/           # architecture, decisions (ADRs), learning, security
@@ -82,7 +84,7 @@ notebooks/  datasets/  portfolio/
 ## Shared utilities (`src/shared`)
 
 Cross-cutting primitives imported by every later module — a single place for
-configuration, logging and errors (resilience/retry arrives in story #23).
+configuration, logging, errors and resilience.
 
 **Configuration** — typed, environment-driven settings (`HUB_` prefix;
 precedence: environment > `.env` > typed defaults). Invalid values raise
@@ -216,6 +218,22 @@ for row in result.valid:
     ...  # typed, validated
 ```
 
+## FastF1 telemetry analytics (`src/fastf1_analytics`)
+
+Telemetry-grade session analysis (Epic 5) over the FastF1 library, complementing
+the OpenF1 ingestion above. `configure_cache` + `load_session` cache sessions to
+`datasets/fastf1-cache/` (git-ignored) for fast, reproducible re-runs; prep
+helpers (`clean_laps`, `to_seconds`, `stint_summary`, `session_laps`) turn raw
+laps into tidy frames, and `plot_lap_pace` / `plot_fastest_laps` render the
+comparisons. Requires the `analytics` extra.
+
+```python
+from fastf1_analytics import session_laps, fastest_by_driver
+
+laps = session_laps(2024, "Singapore", "R")     # cached load -> tidy laps frame
+fastest = fastest_by_driver(laps)                # quickest clean lap per driver
+```
+
 ## Dataverse client (`src/dataverse`)
 
 The single governed persistence layer — an authenticated Dataverse Web API
@@ -273,6 +291,30 @@ python scripts/dataverse/seed_crm.py --scale 2 --apply   # parameterised volume
 Re-running is safe (upsert, never duplicate). Requires the CRM tables/keys from
 `create_racy_schema.py --only crm --apply` first.
 
+## Machine learning (`src/ml`)
+
+The ML pillar (Epic 7): reproducible, portfolio-grade models over the F1 and
+audit data. Feature builders (`lap_features`, `race_context_features`,
+`audit_features`) feed three model families — **lap-time regression**
+(`train_lap_regressor`), **tyre-strategy classification**
+(`train_strategy_classifier`) and **stint clustering** (`cluster_stints`, with
+`choose_k`) — each returning typed metrics. A model-agnostic evaluation layer
+(`cross_val_scores`, `compare_regression`, `compare_classification`) and a
+lightweight, seeded `ExperimentTracker` keep runs comparable and reproducible.
+Serving packages the lap-time model behind the Functions `/api/predict` endpoint
+(below). Requires the `analytics` extra.
+
+```python
+from ml import fit_lap_model, export_model, predict
+
+model = fit_lap_model(laps_df)                        # gradient-boosted + metadata
+export_model(model, "artifacts/lap_model.joblib")     # artefact served by /api/predict
+secs = predict(model, {"LapNumber": 12, "Compound": "MEDIUM", ...})   # predicted lap time
+```
+
+Training/export entrypoints live in `scripts/ml/` (`train_lap_regression.py`,
+`train_strategy_classifier.py`, `log_experiments.py`, `export_lap_model.py`).
+
 ## Serverless platform (`src/azure_functions`)
 
 The Azure Functions app (Python v2 model) that ingestion, the assistant, and the
@@ -327,8 +369,10 @@ JSON with bounded repair), a **function-calling tool layer** (`ai.tools` — a
 tool registry + `run_tools` loop; the single tool layer agents reuse, per
 [ADR-0006](docs/decisions/ADR-0006-function-calling-boundary.md)), **guarded CRM
 action tools** (writes staged behind a human-approval gate), **prompt/response
-logging** to Dataverse (`ai.prompt_log`), and a conversational **CRM assistant**
-(`ai.assistant`).
+logging** to Dataverse (`ai.prompt_log`), a conversational **CRM assistant**
+(`ai.assistant`), grounded **record summaries** (`ai.summaries`), and a **GenAI
+output-evaluation harness** (`ai.evaluation` — groundedness + relevance, with a
+deterministic `RuleScorer` for CI and an `LlmJudge` for demos).
 
 ```python
 from ai import AIClient, AzureOpenAIConfig, structured_output
